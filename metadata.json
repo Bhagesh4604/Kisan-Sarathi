@@ -1,0 +1,9 @@
+{
+  "name": "Kisan-Sarathi",
+  "description": "A comprehensive agricultural companion for farmers featuring AI disease diagnosis, satellite farm monitoring, expert chat, and community social feed.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
