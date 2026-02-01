@@ -14,13 +14,18 @@ export interface Post {
   id: string;
   author: string;
   avatar: string;
-  image: string;
+  type: 'image' | 'video';
+  image: string; // Used as thumbnail if video
+  videoUrl?: string;
   caption: string;
   likes: number;
   comments: number;
   liked?: boolean;
+  saved?: boolean;
   isListing?: boolean;
   price?: string;
+  timestamp: string;
+  tags?: string[];
 }
 
 export interface ChatMessage {
