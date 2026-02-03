@@ -61,7 +61,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, currentLang, onLangCha
         </button>
 
         <p className="text-xs text-gray-400 text-center px-4 leading-relaxed">
-          By continuing, you agree to Kisan-Sarathi's Terms of Service and Privacy Policy.
+          By continuing, you agree to Krishi-Drishti's Terms of Service and Privacy Policy.
         </p>
       </div>
 

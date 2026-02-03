@@ -1,9 +1,40 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { COLORS } from '../constants';
 import { Screen, UserProfile, Language } from '../types';
-import { CloudSun, Camera, MessageCircle, Users, Map as MapIcon, ChevronRight, Bell, Globe, Search, ShieldCheck, Landmark, Sparkles } from 'lucide-react';
+import { 
+  CloudSun, 
+  Camera, 
+  MessageCircle, 
+  Map as MapIcon, 
+  ChevronRight, 
+  Bell, 
+  Globe, 
+  Search, 
+  ShieldCheck, 
+  Landmark, 
+  Sparkles, 
+  TrendingUp, 
+  Info, 
+  Loader2, 
+  Newspaper, 
+  Mic, 
+  Radio,
+  Zap,
+  Calendar,
+  ExternalLink,
+  Gift
+} from 'lucide-react';
 import { languages } from '../translations';
+import { GoogleGenAI } from '@google/genai';
+
+interface SchemeAlert {
+  id: string;
+  title: string;
+  description: string;
+  tag: 'NEW' | 'EXPIRING' | 'URGENT';
+  deadline?: string;
+}
 
 interface DashboardScreenProps {
   navigateTo: (screen: Screen) => void;
@@ -15,6 +46,68 @@ interface DashboardScreenProps {
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, onLangChange, currentLang }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [liveNews, setLiveNews] = useState<string | null>(null);
+  const [loadingNews, setLoadingNews] = useState(false);
+  const [schemes, setSchemes] = useState<SchemeAlert[]>([]);
+  const [loadingSchemes, setLoadingSchemes] = useState(false);
+
+  const fetchLiveInsights = async () => {
+    setLoadingNews(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const prompt = `Find the 2 most important agricultural news or price trends for ${user?.district || 'Maharashtra'} today. Keep it short and in ${languages.find(l => l.code === currentLang)?.label}.`;
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+          systemInstruction: "You are an agricultural news curator. Provide only factual, search-grounded updates."
+        }
+      });
+      setLiveNews(response.text || null);
+    } catch (err) {
+      console.error("News fetch failed", err);
+    } finally {
+      setLoadingNews(false);
+    }
+  };
+
+  const fetchSchemes = async () => {
+    setLoadingSchemes(true);
+    // Simulating /api/schemes fetch
+    setTimeout(() => {
+      const mockSchemes: SchemeAlert[] = [
+        { 
+          id: '1', 
+          title: 'New Lemon Subsidy Available', 
+          description: 'Get up to 40% financial aid for high-density lemon plantation in Vidarbha region.', 
+          tag: 'NEW',
+          deadline: 'Aug 30'
+        },
+        { 
+          id: '2', 
+          title: 'Solar Pump Component-C', 
+          description: 'Apply for grid-connected solar pump subsidies under PM-KUSUM scheme.', 
+          tag: 'EXPIRING',
+          deadline: 'July 15'
+        },
+        { 
+          id: '3', 
+          title: 'Organic Fertilizer Grant', 
+          description: 'Direct benefit transfer for verified organic compost units.', 
+          tag: 'URGENT' 
+        }
+      ];
+      setSchemes(mockSchemes);
+      setLoadingSchemes(false);
+    }, 1500);
+  };
+
+  useEffect(() => {
+    fetchLiveInsights();
+    fetchSchemes();
+  }, [currentLang]);
 
   return (
     <div className="p-6 bg-[#F8FAF8] min-h-full relative pb-24">
@@ -86,54 +179,75 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
         <div className="absolute -top-10 -right-10 w-48 h-48 bg-green-500/20 rounded-full blur-3xl"></div>
       </div>
 
-      {/* Scheme Alerts (Module A: Scheme-Bot Enhancement) */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4 px-2">
-          <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-            <Sparkles size={16} className="text-amber-500" /> {t.scheme_bot} Alerts
-          </h3>
-          <button className="text-[10px] font-black text-green-700 uppercase tracking-widest">View All</button>
-        </div>
-        <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2 no-scrollbar">
-          <div className="min-w-[260px] bg-blue-600 rounded-3xl p-5 text-white shadow-lg shadow-blue-100 flex flex-col justify-between h-36">
-             <h4 className="font-black text-sm leading-tight">PM-Kisan 17th Installment Out</h4>
-             <div className="flex justify-between items-end">
-                <span className="text-[10px] font-bold uppercase opacity-80">Released: Today</span>
-                <button className="px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-xl text-[10px] font-black uppercase tracking-wider">{t.apply_now}</button>
-             </div>
+      {/* SCHEME-SETU AI MATCHER BANNER */}
+      <button 
+        onClick={() => navigateTo('scheme-setu')}
+        className="w-full bg-indigo-900 p-6 rounded-[2.5rem] shadow-2xl shadow-indigo-200/50 mb-8 flex items-center justify-between group overflow-hidden relative active:scale-95 transition-all"
+      >
+        <div className="flex items-center gap-5 relative z-10">
+          <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-500/20 backdrop-blur-md flex items-center justify-center text-indigo-100 border border-indigo-400/30">
+            <Gift size={32} />
           </div>
-          <div className="min-w-[260px] bg-amber-600 rounded-3xl p-5 text-white shadow-lg shadow-amber-100 flex flex-col justify-between h-36">
-             <h4 className="font-black text-sm leading-tight">80% Subsidy on Solar Pumps</h4>
-             <div className="flex justify-between items-end">
-                <span className="text-[10px] font-bold uppercase opacity-80">Maharashtra State</span>
-                <button className="px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-xl text-[10px] font-black uppercase tracking-wider">{t.apply_now}</button>
-             </div>
+          <div className="text-left">
+            <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">{t.matcher_tag}</p>
+            <h4 className="text-xl font-black text-white">{t.scheme_setu}</h4>
+            <div className="flex items-center gap-1 mt-1">
+               <Sparkles size={10} className="text-amber-400" />
+               <p className="text-[9px] font-black text-indigo-200 uppercase">You have 3 matches</p>
+            </div>
           </div>
         </div>
-      </div>
+        <div className="p-3 bg-white/10 rounded-2xl relative z-10 text-white">
+          <ChevronRight size={20} />
+        </div>
+        <div className="absolute top-0 right-0 w-48 h-full bg-indigo-500/10 skew-x-[-20deg] translate-x-12"></div>
+      </button>
+
+      {/* LIVE VOICE CONSULT BUTTON */}
+      <button 
+        onClick={() => navigateTo('live-audio')}
+        className="w-full bg-white p-2 rounded-[3rem] border border-green-100 shadow-xl shadow-green-100/40 flex items-center mb-8 active:scale-95 transition-all group overflow-hidden relative"
+      >
+        <div className="flex items-center gap-4 w-full">
+           <div className="w-16 h-16 rounded-full bg-green-700 flex items-center justify-center text-white shadow-lg relative z-10">
+              <Mic size={28} className="animate-pulse" />
+              <div className="absolute inset-0 bg-green-400 blur-xl opacity-30 animate-ping rounded-full"></div>
+           </div>
+           <div className="text-left flex-1 relative z-10">
+              <h4 className="text-base font-black text-gray-900 leading-none mb-1">Live Voice Consult</h4>
+              <p className="text-[10px] text-green-600 font-black uppercase tracking-widest">Talk to AI Scientist Now</p>
+           </div>
+           <div className="pr-6 relative z-10">
+              <div className="w-10 h-10 rounded-2xl bg-green-50 flex items-center justify-center text-green-600">
+                 <Radio size={20} />
+              </div>
+           </div>
+        </div>
+        <div className="absolute top-0 right-0 w-32 h-full bg-green-50/50 skew-x-[-20deg] translate-x-12"></div>
+      </button>
 
       {/* Main Action Grid */}
       <div className="grid grid-cols-2 gap-4 mb-8">
         <GridAction
           title={t.scan_disease}
-          subtitle="Crop Doctor Vision"
+          subtitle="Vision-QC & Doctor"
           icon={<Camera size={24} className="text-blue-600" />}
           onClick={() => navigateTo('vision')}
           bgColor="bg-blue-50"
         />
         <GridAction
+          title="Price Forecast"
+          subtitle="Geo-Prophet AI"
+          icon={<Sparkles size={24} className="text-amber-600" />}
+          onClick={() => navigateTo('forecast')}
+          bgColor="bg-amber-50"
+        />
+        <GridAction
           title={t.ask_tutor}
-          subtitle="AI Expert Advice"
+          subtitle="Text AI Support"
           icon={<MessageCircle size={24} className="text-orange-600" />}
           onClick={() => navigateTo('chat')}
           bgColor="bg-orange-50"
-        />
-        <GridAction
-          title={t.scheme_bot}
-          subtitle="Govt. Subsidies"
-          icon={<Search size={24} className="text-purple-600" />}
-          onClick={() => navigateTo('chat')}
-          bgColor="bg-purple-50"
         />
         <GridAction
           title={t.farm_map}
@@ -142,6 +256,88 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
           onClick={() => navigateTo('map')}
           bgColor="bg-emerald-50"
         />
+      </div>
+
+      {/* Government Scheme Alerts Section */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4 px-2">
+          <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+            <Landmark size={16} className="text-green-700" /> {t.scheme_alerts}
+          </h3>
+          <button className="text-[10px] font-black text-green-700 uppercase tracking-widest">
+            {t.view_all}
+          </button>
+        </div>
+        
+        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 px-2">
+          {loadingSchemes ? (
+            <div className="w-full h-32 flex flex-col items-center justify-center bg-white rounded-[2rem] border border-gray-100">
+               <Loader2 size={24} className="animate-spin text-green-600 mb-2" />
+               <p className="text-[10px] font-black text-gray-400 uppercase">Checking Portals...</p>
+            </div>
+          ) : (
+            schemes.map((scheme) => (
+              <div 
+                key={scheme.id}
+                className="min-w-[240px] bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group active:scale-95 transition-all"
+              >
+                <div className="flex justify-between items-start mb-3 relative z-10">
+                  <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider ${
+                    scheme.tag === 'NEW' ? 'bg-green-100 text-green-700' : 
+                    scheme.tag === 'EXPIRING' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'
+                  }`}>
+                    {scheme.tag === 'NEW' ? t.new_alert : scheme.tag === 'EXPIRING' ? t.expiring : 'URGENT'}
+                  </span>
+                  {scheme.deadline && (
+                    <div className="flex items-center gap-1 text-[9px] font-bold text-gray-400">
+                       <Calendar size={10} /> {scheme.deadline}
+                    </div>
+                  )}
+                </div>
+                <h4 className="text-sm font-black text-gray-900 mb-2 group-hover:text-green-700 transition-colors">{scheme.title}</h4>
+                <p className="text-[10px] text-gray-500 font-medium leading-relaxed line-clamp-2">{scheme.description}</p>
+                <div className="mt-4 flex justify-between items-center">
+                   <button className="text-[9px] font-black text-green-700 uppercase flex items-center gap-1 group-hover:gap-2 transition-all">
+                     Learn More <ChevronRight size={10} />
+                   </button>
+                   <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:text-green-600 group-hover:bg-green-50 transition-all">
+                     <ExternalLink size={12} />
+                   </div>
+                </div>
+                <div className="absolute -top-4 -right-4 w-16 h-16 bg-green-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Live Market Pulse */}
+      <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm mb-8 relative overflow-hidden group">
+         <div className="flex justify-between items-center mb-4 relative z-10">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+               <Globe size={14} className="text-green-600" /> Live Market Pulse
+            </h3>
+            <span className="px-2 py-1 bg-green-50 text-green-700 rounded-lg text-[8px] font-black uppercase tracking-wider">Search Verified</span>
+         </div>
+         <div className="relative z-10">
+            {loadingNews ? (
+              <div className="flex items-center gap-3 py-2">
+                <Loader2 size={16} className="animate-spin text-green-600" />
+                <span className="text-[10px] font-black text-gray-400 uppercase">Fetching latest news...</span>
+              </div>
+            ) : liveNews ? (
+              <div className="flex gap-4">
+                 <div className="w-10 h-10 rounded-xl bg-green-50 text-green-700 flex items-center justify-center shrink-0">
+                    <Newspaper size={20} />
+                 </div>
+                 <p className="text-xs font-bold text-gray-700 leading-relaxed italic">
+                    "{liveNews}"
+                 </p>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Tap to refresh live agri-insights.</p>
+            )}
+         </div>
       </div>
 
       {/* Fin-Trust Banner */}
@@ -166,24 +362,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
           <ChevronRight size={20} className="text-gray-300" />
         </div>
       </button>
-
-      <div className="flex justify-between items-center mb-5 px-2">
-        <h3 className="text-lg font-black text-gray-900">{t.smart_tips}</h3>
-        <button className="text-[10px] font-black text-green-700 uppercase tracking-widest">View All</button>
-      </div>
-      
-      <div className="space-y-4">
-        <TipCard
-          title="Pest Warning"
-          description="High probability of aphids in citrus crops this week in your district."
-          type="warning"
-        />
-        <TipCard
-          title="Market Opportunity"
-          description="Mushroom prices are up by 12% in Pune Mandi. Best time to sell!"
-          type="info"
-        />
-      </div>
     </div>
   );
 };
@@ -202,17 +380,6 @@ const GridAction: React.FC<{ title: string; subtitle: string; icon: React.ReactN
       {icon}
     </div>
   </button>
-);
-
-const TipCard: React.FC<{ title: string; description: string; type: 'warning' | 'info' }> = ({ title, description, type }) => (
-  <div className="bg-white p-5 rounded-[2rem] border border-gray-100 flex gap-4 items-center shadow-sm hover:shadow-md transition-shadow">
-    <div className={`w-1.5 h-12 rounded-full ${type === 'warning' ? 'bg-amber-400' : 'bg-blue-400'}`}></div>
-    <div className="flex-1">
-      <h4 className="font-black text-gray-900 text-sm">{title}</h4>
-      <p className="text-gray-500 text-[11px] font-medium mt-1 leading-relaxed">{description}</p>
-    </div>
-    <ChevronRight size={16} className="text-gray-200" />
-  </div>
 );
 
 export default DashboardScreen;

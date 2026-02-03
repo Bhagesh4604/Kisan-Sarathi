@@ -3,7 +3,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { COLORS } from '../constants';
 import { Screen, ChatMessage, Language } from '../types';
-import { Send, Mic, ArrowLeft, Bot, Loader2, Globe, Search, Landmark, X } from 'lucide-react';
+import { 
+  Send, 
+  Mic, 
+  ArrowLeft, 
+  Bot, 
+  Loader2, 
+  Globe, 
+  Search, 
+  Landmark, 
+  X, 
+  ExternalLink, 
+  BrainCircuit, 
+  Sparkles,
+  Zap
+} from 'lucide-react';
 import { languages } from '../translations';
 
 interface ChatScreenProps {
@@ -12,7 +26,6 @@ interface ChatScreenProps {
   t: any;
 }
 
-// BCP 47 mapping for regional languages
 const LANG_MAP: Record<string, string> = {
   en: 'en-IN',
   hi: 'hi-IN',
@@ -31,6 +44,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigateTo, language, t }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isThinkingMode, setIsThinkingMode] = useState(false);
   const [groundingUrls, setGroundingUrls] = useState<{title: string, uri: string}[]>([]);
   const [mode, setMode] = useState<'tutor' | 'schemes'>('tutor');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -44,7 +58,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigateTo, language, t }) => {
     }
   }, [messages, isLoading]);
 
-  // Initialize Speech Recognition
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -100,18 +113,26 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigateTo, language, t }) => {
     setGroundingUrls([]);
 
     try {
-      // Use process.env.API_KEY directly as per guidelines
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const systemInstruction = mode === 'schemes' 
-        ? `You are Sahayak Scheme-Bot. Respond exclusively in ${currentLangLabel}. Use Google Search to find current Indian Government agricultural subsidies, Pradhan Mantri schemes, and state-level financial aid (KCC, PM-Kisan, etc). Provide clear eligibility criteria and links.`
-        : `You are Agri-Tutor, an expert in high-yield crops like Mushrooms and Lemons. Respond exclusively in ${currentLangLabel}. Provide scientific farming methods, lifecycle advice, and market price trends via Google Search.`;
+      
+      const modelName = isThinkingMode ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
+      
+      let systemInstruction = mode === 'schemes' 
+        ? `You are Sahayak Scheme-Bot. Respond exclusively in ${currentLangLabel}. ALWAYS USE Google Search to find CURRENT Indian Government agricultural subsidies, PM-Kisan status, and state-level financial aid. Provide application links and dates. Be very specific.`
+        : `You are Agri-Tutor, an agricultural expert. Respond exclusively in ${currentLangLabel}. USE Google Search to provide real-time mandi prices and weather-based crop advice.`;
+
+      if (isThinkingMode) {
+        systemInstruction += " You are currently in DEEP THINKING mode. Use advanced agricultural reasoning, consider multi-year crop cycles, soil degradation, and economic fluctuations. Provide comprehensive, deeply reasoned solutions to complex farming problems.";
+      }
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: modelName,
         contents: userMsg,
         config: {
           tools: [{ googleSearch: {} }],
-          systemInstruction
+          systemInstruction,
+          // Thinking configuration for complex queries
+          ...(isThinkingMode && { thinkingConfig: { thinkingBudget: 32768 } })
         }
       });
 
@@ -127,59 +148,91 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigateTo, language, t }) => {
 
       setMessages(prev => [...prev, { role: 'model', text: aiText }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'model', text: "Connection error. Please check your data and retry." }]);
+      console.error("Chat error:", error);
+      setMessages(prev => [...prev, { role: 'model', text: "An error occurred during deep analysis. Please try again." }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f8fafc]">
-      <div className="bg-white px-4 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+    <div className={`flex flex-col h-full transition-colors duration-500 ${isThinkingMode ? 'bg-[#f0f4f0]' : 'bg-[#f8fafc]'}`}>
+      <div className={`bg-white px-4 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10 shadow-sm transition-all ${isThinkingMode ? 'ring-2 ring-green-600/10' : ''}`}>
         <div className="flex items-center gap-4">
           <button onClick={() => navigateTo('home')} className="text-gray-400 p-1">
             <ArrowLeft size={24} />
           </button>
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg ${mode === 'tutor' ? 'bg-green-600' : 'bg-blue-600'}`}>
-              {mode === 'tutor' ? <Bot size={22} /> : <Landmark size={22} />}
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg transition-all ${
+              isThinkingMode ? 'bg-indigo-600 scale-110' : (mode === 'tutor' ? 'bg-green-600' : 'bg-blue-600')
+            }`}>
+              {isThinkingMode ? <BrainCircuit size={22} /> : (mode === 'tutor' ? <Bot size={22} /> : <Landmark size={22} />)}
             </div>
             <div>
-              <h2 className="text-sm font-black text-gray-900 leading-none">{mode === 'tutor' ? 'Agri-Tutor AI' : 'Sahayak Bot'}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-black text-gray-900 leading-none">
+                  {isThinkingMode ? 'Deep Thinking' : (mode === 'tutor' ? 'Agri-Tutor AI' : 'Sahayak Bot')}
+                </h2>
+                {isThinkingMode && <Sparkles size={12} className="text-indigo-600 animate-pulse" />}
+              </div>
               <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{currentLangLabel} Mode</span>
             </div>
           </div>
         </div>
-        <button 
-          onClick={() => setMode(mode === 'tutor' ? 'schemes' : 'tutor')}
-          className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase transition-all flex items-center gap-1.5 ${
-            mode === 'schemes' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'
-          }`}
-        >
-          {mode === 'schemes' ? <Search size={12} /> : <Landmark size={12} />}
-          {mode === 'schemes' ? 'Agri Tutor' : 'Schemes'}
-        </button>
+        
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setIsThinkingMode(!isThinkingMode)}
+            className={`p-2.5 rounded-2xl transition-all flex items-center gap-1.5 border ${
+              isThinkingMode 
+              ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm' 
+              : 'bg-white border-gray-200 text-gray-400 hover:border-indigo-200'
+            }`}
+          >
+            <BrainCircuit size={18} />
+            <span className="text-[8px] font-black uppercase tracking-widest hidden sm:block">Deep Think</span>
+          </button>
+          <button 
+            onClick={() => setMode(mode === 'tutor' ? 'schemes' : 'tutor')}
+            className={`px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase transition-all flex items-center gap-1.5 border ${
+              mode === 'schemes' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-green-50 text-green-700 border-green-100'
+            }`}
+          >
+            {mode === 'schemes' ? <Search size={12} /> : <Landmark size={12} />}
+            {mode === 'schemes' ? 'Agri Tutor' : 'Schemes'}
+          </button>
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[88%] px-4 py-3 rounded-[1.5rem] text-sm leading-relaxed shadow-sm ${
+            <div className={`max-w-[88%] px-4 py-3 rounded-[1.5rem] text-sm leading-relaxed shadow-sm transition-all ${
               msg.role === 'user' 
               ? 'bg-green-700 text-white rounded-tr-none' 
-              : 'bg-white text-gray-900 border border-gray-100 rounded-tl-none font-medium'
+              : `bg-white text-gray-900 border border-gray-100 rounded-tl-none font-medium ${isThinkingMode ? 'ring-1 ring-indigo-50 shadow-indigo-100/20' : ''}`
             }`}>
               <p className="whitespace-pre-wrap">{msg.text}</p>
+              
               {msg.role === 'model' && groundingUrls.length > 0 && idx === messages.length - 1 && (
-                <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1">
-                    <Globe size={10} /> Sources
+                <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+                  <p className="text-[10px] font-black text-gray-400 uppercase flex items-center gap-1.5 tracking-widest">
+                    <Globe size={12} className="text-green-600" /> Search Grounded Sources
                   </p>
-                  {groundingUrls.slice(0, 2).map((link, i) => (
-                    <a key={i} href={link.uri} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-blue-600 hover:underline truncate font-bold">
-                      • {link.title}
-                    </a>
-                  ))}
+                  <div className="flex flex-col gap-2">
+                    {groundingUrls.map((link, i) => (
+                      <a 
+                        key={i} 
+                        href={link.uri} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="flex items-center justify-between p-2 bg-gray-50 rounded-xl border border-gray-100 hover:border-green-200 transition-colors group"
+                      >
+                        <span className="text-[11px] text-gray-700 font-bold truncate max-w-[85%]">{link.title}</span>
+                        <ExternalLink size={12} className="text-gray-400 group-hover:text-green-600" />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -187,9 +240,21 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigateTo, language, t }) => {
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-white px-4 py-3 rounded-[1.5rem] rounded-tl-none border border-gray-100 shadow-sm flex items-center gap-3">
-              <Loader2 className="animate-spin text-green-600" size={18} />
-              <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">{t.ai_thinking}</span>
+            <div className={`bg-white px-4 py-3 rounded-[1.5rem] rounded-tl-none border border-gray-100 shadow-sm flex items-center gap-3 ${isThinkingMode ? 'ring-2 ring-indigo-500/10' : ''}`}>
+              {isThinkingMode ? (
+                <div className="flex items-center gap-2">
+                   <div className="relative">
+                      <BrainCircuit size={18} className="text-indigo-600 animate-pulse" />
+                      <div className="absolute inset-0 bg-indigo-400 blur-sm opacity-50 animate-ping rounded-full scale-50"></div>
+                   </div>
+                   <span className="text-xs text-indigo-700 font-black uppercase tracking-widest">Simulating agricultural outcomes...</span>
+                </div>
+              ) : (
+                <>
+                  <Loader2 className="animate-spin text-green-600" size={18} />
+                  <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Searching Mandi & Govt data...</span>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -209,13 +274,15 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigateTo, language, t }) => {
         )}
 
         <div className="flex items-center gap-3">
-          <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 flex items-center border border-gray-200 focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-500 transition-all">
+          <div className={`flex-1 bg-gray-50 rounded-2xl px-4 py-3 flex items-center border transition-all ${
+            isThinkingMode ? 'border-indigo-200 focus-within:ring-indigo-500 ring-offset-2' : 'border-gray-200 focus-within:border-green-500 focus-within:ring-green-500'
+          } focus-within:ring-1`}>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={mode === 'schemes' ? 'Search schemes (e.g., Solar Pump)...' : t.placeholder_chat}
+              placeholder={isThinkingMode ? "Ask for long-term farm planning..." : (mode === 'schemes' ? 'Ask about PM-Kisan, KCC, etc...' : t.placeholder_chat)}
               className="flex-1 bg-transparent border-none outline-none text-sm text-gray-900 font-bold placeholder:text-gray-400"
             />
           </div>
@@ -223,7 +290,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigateTo, language, t }) => {
             <button 
               onClick={toggleListening}
               className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-90 ${
-                isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-400'
+                isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
               }`}
             >
               <Mic size={20} />
@@ -232,7 +299,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigateTo, language, t }) => {
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
               className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg transition-all active:scale-90 disabled:opacity-50 disabled:active:scale-100`}
-              style={{ backgroundColor: mode === 'tutor' ? COLORS.primary : '#2563eb' }}
+              style={{ backgroundColor: isThinkingMode ? '#4f46e5' : (mode === 'tutor' ? COLORS.primary : '#2563eb') }}
             >
               <Send size={20} />
             </button>

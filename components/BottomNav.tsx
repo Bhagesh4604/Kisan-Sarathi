@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, Users, Store, Camera, Map as MapIcon } from 'lucide-react';
+import { Home, Store, Camera, Map as MapIcon, MessageCircle } from 'lucide-react';
 import { Screen } from '../types';
 import { COLORS } from '../constants';
 
@@ -12,7 +12,7 @@ interface BottomNavProps {
 const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate }) => {
   const navItems = [
     { id: 'home', icon: Home, label: 'Home' },
-    { id: 'social', icon: Users, label: 'Social' },
+    { id: 'chat', icon: MessageCircle, label: 'Chat' },
     { id: 'vision', icon: Camera, label: 'Scan' },
     { id: 'map', icon: MapIcon, label: 'Map' },
     { id: 'market', icon: Store, label: 'Mandi' },

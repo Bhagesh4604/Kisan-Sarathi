@@ -20,7 +20,12 @@ import {
   Copy,
   Info,
   History,
-  ChevronRight
+  ChevronRight,
+  TrendingDown,
+  Sparkles,
+  Zap,
+  Fingerprint,
+  Leaf
 } from 'lucide-react';
 import { COLORS } from '../constants';
 
@@ -94,9 +99,9 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
              <span className="px-3 py-1.5 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg">
                <Tag size={12} /> {listing.category || 'Crop'}
              </span>
-             {listing.verified && (
-               <span className="px-3 py-1.5 bg-white text-green-700 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg">
-                 <BadgeCheck size={14} /> Satellite Verified
+             {listing.isOrganic && (
+               <span className="px-3 py-1.5 bg-green-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg border border-green-500">
+                 <Leaf size={14} fill="white" /> Organic Verified
                </span>
              )}
              {listing.isSellerVerified && (
@@ -113,25 +118,70 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
       </div>
 
       <div className="px-6 -mt-8 relative z-10">
-        {/* Auction Progress Card */}
-        <div className="bg-white rounded-[2.5rem] p-6 shadow-xl shadow-gray-200/50 border border-gray-100 mb-6">
-          <div className="flex justify-between items-center mb-4">
-             <div className="flex items-center gap-2">
-               <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
-                 <Clock size={18} />
-               </div>
-               <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Time Remaining</span>
-             </div>
-             <span className="text-sm font-black text-orange-600 tabular-nums">{formatTime(timeLeft)}</span>
-          </div>
-          <div className="w-full h-3 bg-gray-50 rounded-full overflow-hidden mb-2 border border-gray-100 p-0.5">
-             <div 
-               className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full transition-all duration-1000"
-               style={{ width: `${(timeLeft / 21600) * 100}%` }}
-             ></div>
-          </div>
-          <p className="text-[9px] text-gray-400 text-center font-bold">Initial Auction duration: 6 Hours</p>
+        {/* Mandi-Prophet Price Graph Card */}
+        <div className="bg-white rounded-[2.5rem] p-6 shadow-xl shadow-gray-200/50 border border-gray-100 mb-6 relative overflow-hidden">
+           <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                 <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+                    <TrendingUp size={18} />
+                 </div>
+                 <h4 className="text-sm font-black text-gray-900">Mandi-Prophet AI</h4>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100">
+                 <Sparkles size={12} className="text-green-600" />
+                 <span className="text-[10px] font-black text-green-700">Rise Expected</span>
+              </div>
+           </div>
+
+           {/* Simulated Graph (SVG) */}
+           <div className="h-24 w-full mb-6 relative">
+              <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40">
+                {/* Past (Solid) */}
+                <path d="M 0 35 L 20 30 L 40 32 L 60 25" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
+                {/* Future (Dashed) */}
+                <path d="M 60 25 L 75 18 L 100 10" fill="none" stroke="#22c55e" strokeWidth="2" strokeDasharray="3 2" strokeLinecap="round" />
+                {/* Points */}
+                <circle cx="0" cy="35" r="1.5" fill="#cbd5e1" />
+                <circle cx="20" cy="30" r="1.5" fill="#cbd5e1" />
+                <circle cx="40" cy="32" r="1.5" fill="#cbd5e1" />
+                <circle cx="60" cy="25" r="2.5" fill="#1e293b" />
+                <circle cx="100" cy="10" r="2.5" fill="#22c55e" />
+              </svg>
+              <div className="absolute top-0 right-0 p-1.5 bg-green-600 text-white text-[8px] font-black rounded-lg animate-bounce">
+                ₹2,450/qtl
+              </div>
+           </div>
+
+           <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+              <Zap size={18} className="text-amber-500 mt-0.5" />
+              <div>
+                <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none mb-1">Actionable Advice</p>
+                <p className="text-xs font-bold text-gray-500">Sell in 3 days for max profit. Local mandi arrivals are slowing down.</p>
+              </div>
+           </div>
         </div>
+
+        {/* Organic Passport - Traceability Timeline */}
+        {listing.isOrganic && (
+          <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-green-100 mb-6 relative overflow-hidden">
+             <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-2">
+                   <div className="w-8 h-8 rounded-full bg-green-50 text-green-700 flex items-center justify-center">
+                      <Fingerprint size={18} />
+                   </div>
+                   <h4 className="text-sm font-black text-gray-900">{t.traceability_passport}</h4>
+                </div>
+                <div className="px-2 py-1 bg-green-700 text-white rounded text-[8px] font-black uppercase">Satya-Ledger Verified</div>
+             </div>
+             <div className="space-y-4">
+                <PassportStep title="Bio-Harvest" date="July 2, 2024" hash="0x8f2...a1" active />
+                <PassportStep title="Neem-Oil Shield Spray" date="June 14, 2024" hash="0x4d1...c9" />
+                <PassportStep title="Jeevamrutham Added" date="May 28, 2024" hash="0x9a3...e2" />
+                <PassportStep title="Organic Seed Certification" date="April 10, 2024" hash="0x2b4...f5" />
+             </div>
+             <div className="absolute top-0 right-0 w-32 h-full bg-green-50/20 -skew-x-12 translate-x-16 pointer-events-none"></div>
+          </div>
+        )}
 
         {/* Price & Bid Stats */}
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -148,6 +198,25 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
               <h3 className="text-2xl font-black text-gray-900">{listing.quantity}</h3>
               <p className="text-[10px] text-gray-400 font-bold mt-2">Available for Pickup</p>
            </div>
+        </div>
+
+        {/* Auction Time Remaining */}
+        <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 mb-6">
+          <div className="flex justify-between items-center mb-4">
+             <div className="flex items-center gap-2">
+               <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
+                 <Clock size={18} />
+               </div>
+               <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Time Remaining</span>
+             </div>
+             <span className="text-sm font-black text-orange-600 tabular-nums">{formatTime(timeLeft)}</span>
+          </div>
+          <div className="w-full h-3 bg-gray-50 rounded-full overflow-hidden border border-gray-100 p-0.5">
+             <div 
+               className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full transition-all duration-1000"
+               style={{ width: `${(timeLeft / 21600) * 100}%` }}
+             ></div>
+          </div>
         </div>
 
         {/* Logistics & Tracking */}
@@ -285,6 +354,22 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
     </div>
   );
 };
+
+const PassportStep: React.FC<{ title: string; date: string; hash: string; active?: boolean }> = ({ title, date, hash, active }) => (
+  <div className="flex gap-4">
+    <div className="flex flex-col items-center">
+      <div className={`w-3 h-3 rounded-full ${active ? 'bg-green-600 ring-4 ring-green-100' : 'bg-gray-200'}`}></div>
+      <div className="flex-1 w-0.5 bg-gray-50 mt-1 min-h-[16px]"></div>
+    </div>
+    <div className="pb-4 flex-1">
+      <div className="flex justify-between items-start">
+         <h5 className={`text-[11px] font-black uppercase tracking-wider ${active ? 'text-gray-900' : 'text-gray-400'}`}>{title}</h5>
+         <span className="text-[8px] font-mono text-gray-300 bg-gray-50 px-1 rounded">{hash}</span>
+      </div>
+      <p className="text-[9px] font-bold text-green-600 mt-0.5">{date}</p>
+    </div>
+  </div>
+);
 
 const TimelineItem: React.FC<{ status: string, date: string, icon: React.ReactNode, active?: boolean, completed?: boolean }> = ({ status, date, icon, active, completed }) => (
   <div className="flex gap-5">

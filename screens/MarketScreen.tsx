@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Screen } from '../types';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Screen, Listing } from '../types';
 import { 
   Search, 
   Filter, 
@@ -15,32 +15,124 @@ import {
   Camera, 
   Package, 
   Tag,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles,
+  SearchIcon,
+  Globe,
+  Loader2,
+  CheckCircle2,
+  ArrowRight,
+  Mic,
+  MicOff,
+  Type,
+  Volume2,
+  Leaf,
+  Scale,
+  ShieldAlert,
+  LayoutGrid,
+  Map,
+  ArrowUpDown,
+  BarChart3
 } from 'lucide-react';
 import { COLORS } from '../constants';
+import { GoogleGenAI } from '@google/genai';
 
 interface MarketScreenProps {
   navigateTo: (screen: Screen, data?: any) => void;
   t: any;
 }
 
-const INITIAL_MOCK_LISTINGS = [
-  { id: 1, crop: 'Organic Mushrooms', quantity: '500kg', price: '₹120/kg', loc: 'Pune', trend: '+5%', verified: true, isSellerVerified: true, image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=400&h=300&auto=format&fit=crop', category: 'Crop', seller: 'Ramesh K.', description: 'Freshly harvested organic button mushrooms from our controlled environment farm in Pune. High protein and quality.', trackingId: 'KS-TRK9921' },
-  { id: 2, crop: 'Premium Lemons', quantity: '2000kg', price: '₹45/kg', loc: 'Nagpur', trend: '-2%', verified: true, isSellerVerified: false, image: 'https://images.unsplash.com/photo-1590502593747-42a9961345e2?q=80&w=400&h=300&auto=format&fit=crop', category: 'Crop', seller: 'Sita D.', description: 'Juicy, seedless lemons grown with organic fertilizers. Perfect for long-distance transport and high juice yield.', trackingId: 'KS-TRK4410' },
-  { id: 3, crop: 'Basmati Rice', quantity: '10 Ton', price: '₹85/kg', loc: 'Karnal', trend: '+12%', verified: false, isSellerVerified: true, image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?q=80&w=400&h=300&auto=format&fit=crop', category: 'Crop', seller: 'Amit S.', description: 'Long grain aromatic Basmati rice, aged for 12 months. Direct from the heart of Haryana fields.', trackingId: 'KS-TRK8832' },
+const INITIAL_MOCK_LISTINGS: Listing[] = [
+  { id: 1, crop: 'Organic Mushrooms', quantity: '500kg', price: '₹120/kg', loc: 'Pune', trend: '+5%', verified: true, isSellerVerified: true, image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=400&h=300&auto=format&fit=crop', category: 'Crop', seller: 'Ramesh K.', description: 'Freshly harvested organic button mushrooms from our controlled environment farm in Pune.', trackingId: 'KS-TRK9921', forecast: 'Rising', isOrganic: true, maxQuota: 1200, grade: 'A', distanceKm: 5 },
+  { id: 2, crop: 'Premium Lemons', quantity: '2000kg', price: '₹45/kg', loc: 'Nagpur', trend: '-2%', verified: true, isSellerVerified: false, image: 'https://images.unsplash.com/photo-1590502593747-42a9961345e2?q=80&w=400&h=300&auto=format&fit=crop', category: 'Crop', seller: 'Sita D.', description: 'Juicy, seedless lemons grown with organic fertilizers.', trackingId: 'KS-TRK4410', forecast: 'Stable', isOrganic: false, grade: 'B', distanceKm: 12 },
+  { id: 3, crop: 'Basmati Rice', quantity: '10 Ton', price: '₹85/kg', loc: 'Karnal', trend: '+12%', verified: false, isSellerVerified: true, image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?q=80&w=400&h=300&auto=format&fit=crop', category: 'Crop', seller: 'Amit S.', description: 'Long grain aromatic Basmati rice, aged for 12 months.', trackingId: 'KS-TRK8832', forecast: 'Rising', isOrganic: true, maxQuota: 15000, grade: 'A', distanceKm: 250 },
+  { id: 4, crop: 'Wheat (Lokayat)', quantity: '4000kg', price: '₹28/kg', loc: 'Nagpur', trend: '+2%', verified: true, isSellerVerified: true, image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?q=80&w=400&h=300&auto=format&fit=crop', category: 'Crop', seller: 'Rahul V.', description: 'Standard quality wheat from Nagpur belt.', trackingId: 'KS-TRK1102', forecast: 'Stable', isOrganic: false, grade: 'B', distanceKm: 2 },
+  { id: 5, crop: 'Desi Onions', quantity: '1500kg', price: '₹32/kg', loc: 'Nashik', trend: '-5%', verified: true, isSellerVerified: true, image: 'https://images.unsplash.com/photo-1508747703725-719777637510?q=80&w=400&h=300&auto=format&fit=crop', category: 'Crop', seller: 'Ganesh P.', description: 'Red onions, cured for better shelf life.', trackingId: 'KS-TRK3342', forecast: 'Rising', isOrganic: false, grade: 'A', distanceKm: 18 },
 ];
 
 const MarketScreen: React.FC<MarketScreenProps> = ({ navigateTo, t }) => {
-  const [listings, setListings] = useState(INITIAL_MOCK_LISTINGS);
+  const [tab, setTab] = useState<'pulse' | 'store'>('pulse');
+  const [listings, setListings] = useState<Listing[]>(INITIAL_MOCK_LISTINGS);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [livePrice, setLivePrice] = useState<{ text: string, urls: {title: string, uri: string}[] } | null>(null);
+  const [isSearchingPrice, setIsSearchingPrice] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [compareItem, setCompareItem] = useState<Listing | null>(null);
+  const [sortBy, setSortBy] = useState<'distance' | 'grade'>('distance');
+  const recognitionRef = useRef<any>(null);
+
+  // Mock Land Size for Volume-Lock (2 Acres)
+  const VERIFIED_LAND_ACRES = 2;
+  const ESTIMATED_MAX_QUOTA = 10000; 
+
   const [newListing, setNewListing] = useState({
     crop: '',
     price: '',
     quantity: '',
     loc: '',
     category: 'Crop',
-    description: ''
+    description: '',
+    isOrganic: false
   });
+
+  const isOverQuota = parseInt(newListing.quantity) > ESTIMATED_MAX_QUOTA && newListing.isOrganic;
+
+  const filteredListings = useMemo(() => {
+    let result = listings;
+    if (tab === 'store') {
+      result = listings.filter(l => l.seller === 'Me');
+    } else {
+      // In Pulse, show everything but maybe exclude 'Me' if we want strictly others
+      // For now, show all to see market saturation
+    }
+
+    if (searchQuery) {
+      result = result.filter(l => l.crop.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+
+    return result.sort((a, b) => {
+      if (sortBy === 'distance') return (a.distanceKm || 0) - (b.distanceKm || 0);
+      if (sortBy === 'grade') return (a.grade || 'C').localeCompare(b.grade || 'C');
+      return 0;
+    });
+  }, [listings, tab, searchQuery, sortBy]);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-IN';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setNewListing(prev => ({
+          ...prev,
+          description: prev.description ? `${prev.description} ${transcript}` : transcript
+        }));
+        setIsRecording(false);
+      };
+
+      recognitionRef.current.onerror = () => setIsRecording(false);
+      recognitionRef.current.onend = () => setIsRecording(false);
+    }
+  }, []);
+
+  const toggleVoiceNote = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      if (!recognitionRef.current) {
+        alert("Voice recognition not supported in this browser.");
+        return;
+      }
+      setIsRecording(true);
+      recognitionRef.current.start();
+    }
+  };
 
   const generateTrackingId = () => {
     return 'KS-' + Math.random().toString(36).substring(2, 9).toUpperCase();
@@ -48,216 +140,423 @@ const MarketScreen: React.FC<MarketScreenProps> = ({ navigateTo, t }) => {
 
   const handleAddListing = () => {
     if (!newListing.crop || !newListing.price || !newListing.quantity) return;
-
-    const entry = {
+    if (isOverQuota) return;
+    
+    const entry: Listing = {
       id: Date.now(),
       crop: newListing.crop,
-      quantity: newListing.quantity,
+      quantity: `${newListing.quantity}kg`,
       price: `₹${newListing.price}/${newListing.category === 'Crop' ? 'kg' : 'unit'}`,
       loc: newListing.loc || 'My Farm',
       trend: 'New',
-      verified: false,
-      isSellerVerified: Math.random() > 0.5, // 50% chance of seller verification
-      isUserListing: true,
+      verified: true,
+      isSellerVerified: true,
       category: newListing.category,
       image: `https://picsum.photos/seed/${newListing.crop}/400/300`,
       seller: 'Me',
-      description: newListing.description || 'No description provided.',
-      trackingId: generateTrackingId()
+      description: newListing.description || 'Fresh produce listed via Mandi Direct.',
+      trackingId: generateTrackingId(),
+      forecast: 'Stable',
+      isOrganic: newListing.isOrganic,
+      maxQuota: ESTIMATED_MAX_QUOTA,
+      grade: 'A', // Assuming user produce is verified high grade
+      distanceKm: 0
     };
-
+    
     setListings([entry, ...listings]);
     setShowAddForm(false);
-    setNewListing({ crop: '', price: '', quantity: '', loc: '', category: 'Crop', description: '' });
+    setNewListing({
+      crop: '',
+      price: '',
+      quantity: '',
+      loc: '',
+      category: 'Crop',
+      description: '',
+      isOrganic: false
+    });
+    setTab('store');
+  };
+
+  const handlePriceLookup = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearchingPrice(true);
+    setLivePrice(null);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: `What is the current market price (mandi rate) of ${searchQuery} in Indian mandis today? Provide exact prices if possible and mention the region.`,
+        config: {
+          tools: [{ googleSearch: {} }],
+        }
+      });
+      
+      const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const urls = chunks.filter((c: any) => c.web).map((c: any) => ({ title: c.web.title, uri: c.web.uri }));
+      
+      setLivePrice({
+        text: response.text || "Price data unavailable.",
+        urls: urls.slice(0, 2)
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearchingPrice(false);
+    }
+  };
+
+  const getMarketAverage = (cropName: string) => {
+    const relevant = listings.filter(l => l.crop.toLowerCase().includes(cropName.toLowerCase()));
+    if (relevant.length === 0) return 0;
+    const sum = relevant.reduce((acc, l) => acc + parseInt(l.price.replace(/\D/g, '')), 0);
+    return Math.round(sum / relevant.length);
   };
 
   return (
     <div className="bg-[#f8fafc] min-h-full pb-24 relative">
-      {/* Sticky Header */}
-      <div className="bg-white p-6 pb-4 sticky top-0 z-20 shadow-sm border-b border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-black text-gray-900">{t.market_direct}</h2>
+      <div className="bg-white sticky top-0 z-20 shadow-sm border-b border-gray-100">
+        <div className="p-6 pb-2 flex justify-between items-center">
+          <h2 className="text-2xl font-black text-gray-900 leading-none">{t.market_direct}</h2>
           <button 
             onClick={() => setShowAddForm(true)}
-            className="flex items-center gap-2 bg-green-700 text-white px-4 py-2 rounded-2xl text-xs font-black shadow-lg shadow-green-100 active:scale-95 transition-all"
+            className="flex items-center gap-2 bg-green-700 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-100 active:scale-95 transition-all"
           >
-            <Plus size={16} strokeWidth={3} />
+            <Plus size={14} strokeWidth={3} />
             Sell My Crop
           </button>
         </div>
-        <div className="flex gap-3">
-          <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 flex items-center border border-gray-100">
-            <Search size={18} className="text-gray-400 mr-2" />
-            <input 
-              type="text" 
-              placeholder="Search crops, tools or regions..." 
-              className="bg-transparent outline-none text-sm text-gray-900 w-full font-medium" 
-            />
-          </div>
-          <button className="p-3 bg-white border border-gray-100 text-gray-600 rounded-2xl shadow-sm active:bg-gray-50">
-            <Filter size={20} />
-          </button>
+
+        {/* Tab Navigation */}
+        <div className="px-6 flex gap-6 pb-4">
+           <button 
+            onClick={() => setTab('pulse')}
+            className={`text-xs font-black uppercase tracking-widest pb-1 transition-all relative ${
+              tab === 'pulse' ? 'text-green-700' : 'text-gray-400'
+            }`}
+           >
+             {t.mandi_pulse}
+             {tab === 'pulse' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-green-700 rounded-full animate-in slide-in-from-left duration-300"></div>}
+           </button>
+           <button 
+            onClick={() => setTab('store')}
+            className={`text-xs font-black uppercase tracking-widest pb-1 transition-all relative ${
+              tab === 'store' ? 'text-green-700' : 'text-gray-400'
+            }`}
+           >
+             {t.my_store}
+             {tab === 'store' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-green-700 rounded-full animate-in slide-in-from-left duration-300"></div>}
+           </button>
         </div>
-      </div>
 
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="font-black text-gray-900 uppercase tracking-widest text-xs">{t.active_listings}</h3>
-          <div className="flex items-center text-[10px] font-black text-green-700 gap-1 bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
-            <TrendingUp size={12} />
-            MARKET TREND: BULLISH
-          </div>
-        </div>
-
-        <div className="grid gap-6">
-          {listings.map((item: any) => (
-            <div 
-              key={item.id} 
-              onClick={() => navigateTo('market-detail', { listing: item })}
-              className="bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-xl shadow-gray-200/40 transition-transform active:scale-[0.98]"
-            >
-              <div className="relative h-52">
-                <img src={item.image} className="w-full h-full object-cover" alt={item.crop} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-                
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
-                   <Clock size={12} className="text-orange-500" />
-                   <span className="text-[10px] font-black text-gray-900">Ends in 4h</span>
-                </div>
-
-                <div className="absolute top-4 left-4 flex flex-col gap-2">
-                  {item.verified && (
-                    <div className="bg-green-600 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg border border-green-500">
-                      <BadgeCheck size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-wider">Satellite Verified</span>
-                    </div>
-                  )}
-                  {item.isSellerVerified && (
-                    <div className="bg-blue-600 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg border border-blue-500">
-                      <ShieldCheck size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-wider">Verified Seller</span>
-                    </div>
-                  )}
-                </div>
-
-                {item.isUserListing && (
-                  <div className="absolute bottom-4 right-4 bg-gray-900 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg border border-gray-700">
-                    <Tag size={12} />
-                    <span className="text-[10px] font-black uppercase tracking-wider">My Listing</span>
-                  </div>
-                )}
-
-                <div className="absolute bottom-4 left-5">
-                   <p className="text-white text-[10px] font-black uppercase tracking-widest bg-black/20 backdrop-blur-sm px-2 py-0.5 rounded-lg w-fit mb-1">
-                     {item.category || 'Crop'}
-                   </p>
-                   <h4 className="text-xl font-black text-white leading-tight">{item.crop}</h4>
-                </div>
-              </div>
-
-              <div className="p-6">
-                <div className="flex justify-between items-end mb-6">
-                  <div>
-                    <div className="flex items-center text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
-                       <MapPin size={12} className="mr-1 text-green-600" /> {item.loc}
-                    </div>
-                    <p className="text-gray-500 text-sm font-bold">{item.quantity} available</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-green-700 leading-none">{item.price}</p>
-                    <p className={`text-[10px] font-black mt-1 uppercase ${item.trend.startsWith('+') ? 'text-green-500' : 'text-gray-400'}`}>
-                      {item.trend} Today
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex gap-3">
-                  <button className="flex-1 py-4 bg-gray-900 text-white rounded-[1.5rem] text-xs font-black flex items-center justify-center gap-2 shadow-xl shadow-gray-200 active:scale-95 transition-all">
-                    <Gavel size={16} /> {t.place_bid}
-                  </button>
-                  <button className="w-14 h-14 bg-green-50 text-green-700 rounded-[1.5rem] border border-green-100 flex items-center justify-center active:scale-95">
-                    <ChevronRight size={24} />
-                  </button>
-                </div>
-              </div>
+        <div className="px-6 pb-4 space-y-3">
+          <div className="flex gap-3">
+            <div className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 flex items-center border border-gray-100 focus-within:ring-2 focus-within:ring-green-500 transition-all">
+              <Search size={18} className="text-gray-400 mr-2" />
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={tab === 'pulse' ? "Check Price Discovery..." : "Search My Store..."}
+                className="bg-transparent outline-none text-sm text-gray-900 w-full font-bold" 
+              />
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Add Listing Modal Overlay */}
-      {showAddForm && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center px-4 pb-4 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddForm(false)}></div>
+            {tab === 'pulse' && (
+              <button 
+                onClick={handlePriceLookup}
+                disabled={isSearchingPrice || !searchQuery}
+                className={`p-3 rounded-2xl shadow-sm transition-all active:scale-95 ${
+                  isSearchingPrice ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white'
+                }`}
+              >
+                {isSearchingPrice ? <Loader2 size={20} className="animate-spin" /> : <Globe size={20} />}
+              </button>
+            )}
+          </div>
           
-          <div className="bg-white w-full max-w-md rounded-[3rem] p-8 shadow-2xl relative z-10 animate-in slide-in-from-bottom-10 duration-300">
-            <div className="flex justify-between items-center mb-8">
-               <h3 className="text-2xl font-black text-gray-900">Sell My Item</h3>
-               <button onClick={() => setShowAddForm(false)} className="p-2 bg-gray-50 rounded-full text-gray-400"><X size={20} /></button>
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setSortBy('distance')}
+                className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                  sortBy === 'distance' ? 'bg-green-700 text-white shadow-md' : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                <MapPin size={10} className="inline mr-1" /> {t.sort_nearest}
+              </button>
+              <button 
+                onClick={() => setSortBy('grade')}
+                className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                  sortBy === 'grade' ? 'bg-green-700 text-white shadow-md' : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                <BarChart3 size={10} className="inline mr-1" /> {t.sort_best}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 pt-4">
+        {/* Live Price Result (Search Grounded) */}
+        {livePrice && tab === 'pulse' && (
+           <div className="bg-white rounded-[2rem] p-6 border border-green-100 shadow-xl shadow-green-100/20 mb-6 animate-in fade-in slide-in-from-top-4">
+              <div className="flex justify-between items-center mb-4">
+                 <h4 className="text-xs font-black text-green-700 uppercase tracking-widest flex items-center gap-1.5">
+                    <TrendingUp size={14} /> Today's Live Rates
+                 </h4>
+                 <button onClick={() => setLivePrice(null)} className="text-gray-400"><X size={14} /></button>
+              </div>
+              <p className="text-sm font-bold text-gray-700 leading-relaxed mb-4">
+                 {livePrice.text}
+              </p>
+              {livePrice.urls.length > 0 && (
+                <div className="pt-3 border-t border-gray-50">
+                   <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Sources</p>
+                   {livePrice.urls.map((u, i) => (
+                      <a key={i} href={u.uri} target="_blank" rel="noopener" className="flex items-center gap-2 text-[10px] text-blue-600 font-bold mb-1 truncate">
+                         <Globe size={10} /> {u.title}
+                      </a>
+                   ))}
+                </div>
+              )}
+           </div>
+        )}
+
+        {filteredListings.length === 0 ? (
+          <div className="py-20 flex flex-col items-center text-center opacity-40">
+             <LayoutGrid size={64} className="mb-4 text-gray-300" />
+             <p className="text-sm font-black text-gray-500 uppercase tracking-widest">No listings found</p>
+          </div>
+        ) : (
+          <div className="grid gap-6">
+            {filteredListings.map((item: any) => (
+              <div 
+                key={item.id} 
+                className="bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-xl shadow-gray-200/40 active:scale-[0.99] transition-all relative group"
+              >
+                <div className="relative h-48" onClick={() => navigateTo('market-detail', { listing: item })}>
+                  <img src={item.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.crop} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                  
+                  <div className="absolute top-4 left-4 flex flex-wrap gap-2 pr-12">
+                    <div className="bg-white/20 backdrop-blur-md text-white px-2 py-1 rounded-lg flex items-center gap-1 border border-white/30">
+                      <BarChart3 size={10} className="text-amber-400" />
+                      <span className="text-[8px] font-black uppercase tracking-widest">Grade {item.grade}</span>
+                    </div>
+                    {item.isOrganic && (
+                      <div className="bg-green-700 text-white px-2 py-1 rounded-lg flex items-center gap-1 border border-green-500 shadow-lg">
+                        <Leaf size={10} fill="white" />
+                        <span className="text-[8px] font-black uppercase tracking-widest">Organic</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="absolute bottom-4 left-5">
+                    <h4 className="text-xl font-black text-white leading-tight drop-shadow-md">{item.crop}</h4>
+                    <div className="flex items-center text-white/80 text-[10px] font-bold mt-1">
+                       <MapPin size={10} className="mr-1 text-green-400" /> {item.loc} • {item.distanceKm} km away
+                    </div>
+                  </div>
+
+                  {item.seller === 'Me' && (
+                    <div className="absolute top-4 right-4">
+                       <div className="bg-green-600 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-xl">My Store</div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-6">
+                  <div className="flex justify-between items-end mb-6">
+                    <div>
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Stock Status</p>
+                      <p className="text-sm font-black text-gray-900">{item.quantity} Left</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-black text-green-700 leading-none">{item.price}</p>
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        <TrendingUp size={10} className="text-green-600" />
+                        <p className="text-[9px] font-black text-green-600 uppercase">Strong Demand</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => navigateTo('market-detail', { listing: item })}
+                      className="flex-1 py-4 bg-gray-900 text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-colors"
+                    >
+                      <ChevronRight size={14} /> {tab === 'pulse' ? 'Details' : 'Manage'}
+                    </button>
+                    {tab === 'pulse' && (
+                      <button 
+                        onClick={() => setCompareItem(item)}
+                        className="flex-1 py-4 bg-green-50 text-green-700 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border border-green-100 hover:bg-green-100 transition-colors"
+                      >
+                        <Scale size={14} /> {t.compare_price}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* PRICE COMPARISON MODAL */}
+      {compareItem && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+           <div className="w-full bg-white rounded-[3rem] shadow-2xl animate-in zoom-in duration-300 p-8 overflow-hidden relative">
+              <button onClick={() => setCompareItem(null)} className="absolute top-6 right-6 text-gray-300 hover:text-gray-900"><X size={24} /></button>
+              
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-16 h-16 rounded-3xl bg-green-50 flex items-center justify-center text-green-700">
+                   <Scale size={32} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">{t.compare_price}</h3>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">{compareItem.crop} Analysis</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100">
+                       <p className="text-[9px] font-black text-gray-400 uppercase mb-2">{t.market_avg}</p>
+                       <h4 className="text-2xl font-black text-gray-900">₹{getMarketAverage(compareItem.crop)}/kg</h4>
+                       <p className="text-[8px] font-bold text-gray-400 uppercase mt-1">District Wide</p>
+                    </div>
+                    <div className="bg-green-700 p-5 rounded-3xl text-white shadow-xl shadow-green-100">
+                       <p className="text-[9px] font-black text-white/60 uppercase mb-2">Item Price</p>
+                       <h4 className="text-2xl font-black">{compareItem.price.split('/')[0]}</h4>
+                       <p className="text-[8px] font-bold text-white/60 uppercase mt-1">This Listing</p>
+                    </div>
+                 </div>
+
+                 <div className="p-6 bg-green-50 rounded-3xl border border-green-100">
+                    <div className="flex items-center gap-3 mb-3">
+                       <Sparkles size={18} className="text-green-700" />
+                       <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">{t.your_edge}</h4>
+                    </div>
+                    <p className="text-sm font-bold text-gray-700 leading-relaxed italic">
+                      {parseInt(compareItem.price.replace(/\D/g, '')) < getMarketAverage(compareItem.crop) 
+                        ? "This is a Great Deal! Price is 12% below the district average. Potential for high profit margin if you buy and re-sell at mandi peaks." 
+                        : "Premium Pricing: This seller is asking for 5% above the average, justified by Grade A quality and Organic certification."}
+                    </p>
+                 </div>
+
+                 <button 
+                  onClick={() => setCompareItem(null)}
+                  className="w-full py-5 bg-gray-900 text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em]"
+                 >
+                   Got it
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* SELL MY CROP MODAL FORM */}
+      {showAddForm && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white rounded-t-[3rem] shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[95vh] flex flex-col">
+            <div className="p-8 pb-4 flex justify-between items-center border-b border-gray-50">
+              <div>
+                <h3 className="text-2xl font-black text-gray-900">Direct Listing</h3>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Direct from Farm to Mandi</p>
+              </div>
+              <button onClick={() => setShowAddForm(false)} className="p-3 bg-gray-50 rounded-2xl text-gray-400 active:bg-gray-100 transition-colors">
+                <X size={24} />
+              </button>
             </div>
 
-            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
-              <div className="flex gap-2">
-                {['Crop', 'Tool', 'Seeds'].map(cat => (
-                  <button 
-                    key={cat}
-                    onClick={() => setNewListing({...newListing, category: cat})}
-                    className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black uppercase border transition-all ${
-                      newListing.category === cat ? 'bg-green-700 border-green-700 text-white shadow-lg' : 'bg-gray-50 border-gray-100 text-gray-400'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+            <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-6">
+              {/* Volume-Lock Mathematical Defense Display */}
+              <div className="p-5 bg-gray-900 rounded-[2rem] border border-gray-800 shadow-xl mb-2">
+                 <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-2 text-white">
+                       <Globe size={16} className="text-green-400" />
+                       <span className="text-[10px] font-black uppercase tracking-widest">Satellite Quota-Check</span>
+                    </div>
+                    <div className="px-2 py-1 bg-green-500/10 text-green-400 rounded-lg text-[8px] font-black">2.0 ACRES VERIFIED</div>
+                 </div>
+                 <div className="flex justify-between items-end">
+                    <div>
+                       <p className="text-[10px] text-gray-500 font-black uppercase mb-1">Total Organic Capacity</p>
+                       <h4 className="text-xl font-black text-white">{ESTIMATED_MAX_QUOTA.toLocaleString()}kg</h4>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[10px] text-gray-500 font-black uppercase mb-1">Mandi Quota Used</p>
+                       <h4 className={`text-lg font-black ${isOverQuota ? 'text-red-400' : 'text-green-400'}`}>
+                         {newListing.quantity ? parseInt(newListing.quantity).toLocaleString() : 0}kg
+                       </h4>
+                    </div>
+                 </div>
+                 <div className="w-full h-1.5 bg-white/10 rounded-full mt-4 overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-500 ${isOverQuota ? 'bg-red-500' : 'bg-green-500'}`}
+                      style={{ width: `${Math.min((parseInt(newListing.quantity || '0') / ESTIMATED_MAX_QUOTA) * 100, 100)}%` }}
+                    ></div>
+                 </div>
+                 {isOverQuota && (
+                   <div className="mt-3 flex items-center gap-2 text-red-400 animate-pulse">
+                      <ShieldAlert size={14} />
+                      <p className="text-[9px] font-black uppercase">Volume Lock Active: Quota Exceeded</p>
+                   </div>
+                 )}
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-green-50 rounded-3xl border border-green-100 mb-2">
+                 <div className="flex items-center gap-3">
+                    <Leaf className="text-green-700" size={24} />
+                    <div>
+                       <p className="text-xs font-black text-gray-900">Organic Listing</p>
+                       <p className="text-[9px] font-bold text-gray-500 uppercase">Earn 2x Premium</p>
+                    </div>
+                 </div>
+                 <button 
+                  onClick={() => setNewListing({...newListing, isOrganic: !newListing.isOrganic})}
+                  className={`w-12 h-6 rounded-full transition-all relative ${newListing.isOrganic ? 'bg-green-600' : 'bg-gray-300'}`}
+                 >
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${newListing.isOrganic ? 'right-1' : 'left-1'}`}></div>
+                 </button>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Item Name</label>
-                <div className="bg-gray-50 rounded-2xl p-4 flex items-center border border-gray-100 focus-within:border-green-500 transition-all">
-                   <Package size={18} className="text-gray-300 mr-3" />
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 ml-2">What are you selling?</label>
+                <div className="flex items-center bg-gray-50 rounded-2xl px-4 py-4 border border-gray-100 focus-within:ring-2 focus-within:ring-green-500 transition-all">
+                   <Package size={20} className="text-green-600 mr-3" />
                    <input 
                     type="text" 
-                    placeholder="e.g. Fresh Mushrooms" 
-                    className="bg-transparent outline-none w-full text-sm font-black text-gray-900"
+                    placeholder="e.g. Alphonso Mangoes"
+                    className="bg-transparent outline-none w-full text-base font-bold text-gray-900"
                     value={newListing.crop}
                     onChange={(e) => setNewListing({...newListing, crop: e.target.value})}
                    />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Description</label>
-                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                   <textarea 
-                    placeholder="Provide details about quality, harvest date..." 
-                    className="bg-transparent outline-none w-full text-sm font-medium text-gray-900 h-24 resize-none"
-                    value={newListing.description}
-                    onChange={(e) => setNewListing({...newListing, description: e.target.value})}
-                   />
-                </div>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Price (₹)</label>
-                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-center">
-                    <span className="text-gray-400 font-black mr-2">₹</span>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 ml-2">Price (₹)</label>
+                  <div className="flex items-center bg-gray-50 rounded-2xl px-4 py-4 border border-gray-100 focus-within:ring-2 focus-within:ring-green-500 transition-all">
+                    <span className="font-black text-gray-400 mr-2">₹</span>
                     <input 
                       type="number" 
-                      placeholder="120" 
-                      className="bg-transparent outline-none w-full text-sm font-black text-gray-900"
+                      placeholder="120"
+                      className="bg-transparent outline-none w-full text-base font-bold text-gray-900"
                       value={newListing.price}
                       onChange={(e) => setNewListing({...newListing, price: e.target.value})}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Quantity</label>
-                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 ml-2">Quantity (kg)</label>
+                  <div className="flex items-center bg-gray-50 rounded-2xl px-4 py-4 border border-gray-100 focus-within:ring-2 focus-within:ring-green-500 transition-all">
                     <input 
-                      type="text" 
-                      placeholder="e.g. 50 kg" 
-                      className="bg-transparent outline-none w-full text-sm font-black text-gray-900"
+                      type="number" 
+                      placeholder="500"
+                      className="bg-transparent outline-none w-full text-base font-bold text-gray-900"
                       value={newListing.quantity}
                       onChange={(e) => setNewListing({...newListing, quantity: e.target.value})}
                     />
@@ -265,16 +564,44 @@ const MarketScreen: React.FC<MarketScreenProps> = ({ navigateTo, t }) => {
                 </div>
               </div>
 
-              <button className="w-full py-4 bg-gray-100 rounded-2xl flex items-center justify-center gap-3 text-gray-500 font-black text-sm active:scale-95 transition-all">
-                <Camera size={20} /> Add Photo
-              </button>
+              {/* Enhanced Voice Description UI */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center px-2">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Crop Description</label>
+                  <button 
+                    onClick={toggleVoiceNote}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm ${
+                      isRecording 
+                      ? 'bg-red-600 text-white animate-pulse ring-4 ring-red-100' 
+                      : 'bg-green-50 text-green-800 border border-green-200 hover:bg-green-100'
+                    }`}
+                  >
+                    {isRecording ? <MicOff size={14} /> : <Mic size={14} />}
+                    {isRecording ? 'Listening...' : 'Voice Note'}
+                  </button>
+                </div>
+                <div className="flex flex-col bg-gray-50 rounded-3xl p-5 border border-gray-100 focus-within:ring-2 focus-within:ring-green-500 transition-all min-h-[140px] relative">
+                   <textarea 
+                    placeholder="Describe harvest quality, color, texture, or pesticide usage..."
+                    className="bg-transparent outline-none w-full text-sm font-bold text-gray-900 resize-none flex-1 placeholder:text-gray-300 leading-relaxed"
+                    value={newListing.description}
+                    onChange={(e) => setNewListing({...newListing, description: e.target.value})}
+                   />
+                   <div className="absolute bottom-4 right-4 opacity-10 pointer-events-none">
+                      <Volume2 size={32} className="text-green-900" />
+                   </div>
+                </div>
+              </div>
 
-              <button 
-                onClick={handleAddListing}
-                className="w-full py-5 bg-green-700 text-white rounded-[2rem] font-black shadow-2xl shadow-green-100 active:scale-95 transition-all mt-4"
-              >
-                Post Listing
-              </button>
+              <div className="pb-16 pt-2">
+                <button 
+                  onClick={handleAddListing}
+                  disabled={!newListing.crop || !newListing.price || !newListing.quantity || isOverQuota}
+                  className="w-full py-5 bg-green-700 text-white rounded-[2rem] font-black text-sm shadow-2xl shadow-green-100 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                >
+                  {isOverQuota ? 'Quota Blocked' : 'Confirm Listing'} <ArrowRight size={20} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
