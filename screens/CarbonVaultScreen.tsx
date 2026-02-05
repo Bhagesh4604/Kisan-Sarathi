@@ -1,8 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Screen } from '../types';
-// Added missing ChevronRight import
-import { ArrowLeft, Leaf, Wallet, TrendingUp, Info, ArrowUpRight, ShieldCheck, TreePine, Satellite, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Leaf, TrendingUp, ShieldCheck, Satellite, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { COLORS } from '../constants';
 
 interface CarbonVaultScreenProps {
@@ -11,6 +10,13 @@ interface CarbonVaultScreenProps {
 }
 
 const CarbonVaultScreen: React.FC<CarbonVaultScreenProps> = ({ navigateTo, t }) => {
+  const [requestSent, setRequestSent] = useState(false);
+
+  const handleRedeem = () => {
+    setRequestSent(true);
+    setTimeout(() => setRequestSent(false), 4000);
+  };
+
   return (
     <div className="p-6 bg-[#F1F8E9] min-h-full pb-32">
       {/* Header */}
@@ -19,30 +25,48 @@ const CarbonVaultScreen: React.FC<CarbonVaultScreenProps> = ({ navigateTo, t }) 
           <ArrowLeft size={24} />
         </button>
         <div>
-          <h2 className="text-2xl font-black text-gray-900 leading-none">Carbon Vault</h2>
-          <p className="text-[10px] font-black text-green-700 uppercase tracking-widest mt-1">Passive Earth Earnings</p>
+          <h2 className="text-2xl font-black text-gray-900 leading-none">Green Earnings</h2>
+          <p className="text-[10px] font-black text-green-700 uppercase tracking-widest mt-1">Passive Earth Income</p>
         </div>
       </div>
 
-      {/* Main Wallet Card */}
+      {/* Priority 1: Main Wallet Card */}
       <div className="bg-white rounded-[3rem] p-8 shadow-2xl shadow-green-900/10 border border-green-100 mb-8 relative overflow-hidden">
         <div className="flex justify-between items-start mb-10">
           <div className="w-16 h-16 rounded-[1.5rem] bg-green-700 flex items-center justify-center text-white shadow-xl">
              <Leaf size={32} />
           </div>
           <div className="text-right">
-             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current Balance</p>
-             <h3 className="text-4xl font-black text-green-800">12.5 <span className="text-sm">Tokens</span></h3>
+             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Carbon Tokens</p>
+             <h3 className="text-5xl font-black text-green-700 tracking-tight">12.5 <span className="text-xl">ACT</span></h3>
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-6 bg-green-50 rounded-[2rem] border border-green-100">
-           <div>
-             <p className="text-[9px] font-black text-green-600 uppercase tracking-[0.2em] mb-1">Cash Value</p>
-             <h4 className="text-2xl font-black text-gray-900">₹ 24,000</h4>
+        <div className="flex flex-col gap-4">
+           <div className="p-6 bg-green-50 rounded-[2rem] border border-green-100 flex justify-between items-center">
+             <div>
+                <p className="text-[9px] font-black text-green-600 uppercase tracking-[0.2em] mb-1">Cash Value</p>
+                <h4 className="text-3xl font-black text-gray-900">₹ 24,000</h4>
+             </div>
+             <div className="h-10 w-10 bg-green-200 rounded-full flex items-center justify-center text-green-800">
+                <TrendingUp size={20} />
+             </div>
            </div>
-           <button className="bg-green-700 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-200 active:scale-95 transition-all">
-             Sell Tokens
+           
+           <button 
+             onClick={handleRedeem}
+             disabled={requestSent}
+             className={`w-full py-5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 ${
+               requestSent ? 'bg-green-800 text-white' : 'bg-green-700 text-white shadow-green-200 active:scale-95'
+             }`}
+           >
+             {requestSent ? (
+               <>
+                 <CheckCircle2 size={16} /> Request Sent
+               </>
+             ) : (
+               "Redeem Earnings"
+             )}
            </button>
         </div>
       </div>
@@ -56,7 +80,7 @@ const CarbonVaultScreen: React.FC<CarbonVaultScreenProps> = ({ navigateTo, t }) 
             </div>
             <div>
                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Verified by Sentinel-2</p>
-               <h4 className="text-lg font-black">50 Teak Trees detected</h4>
+               <h4 className="text-lg font-black">Teak Plantation</h4>
             </div>
          </div>
          <div className="p-4 bg-white/5 rounded-2xl border border-white/10">

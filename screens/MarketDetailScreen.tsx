@@ -4,12 +4,6 @@ import { Screen } from '../types';
 import { 
   ArrowLeft, 
   MapPin, 
-  BadgeCheck, 
-  Gavel, 
-  Clock, 
-  User, 
-  Star, 
-  MessageCircle, 
   Share2, 
   ShieldCheck,
   TrendingUp,
@@ -21,11 +15,14 @@ import {
   Info,
   History,
   ChevronRight,
-  TrendingDown,
   Sparkles,
   Zap,
-  Fingerprint,
-  Leaf
+  Leaf,
+  Clock,
+  MessageCircle,
+  Star,
+  BadgeCheck,
+  Bot
 } from 'lucide-react';
 import { COLORS } from '../constants';
 
@@ -51,8 +48,7 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
   if (!listing) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-10 text-center bg-white">
-        <LoaderIcon />
-        <p className="mt-4 text-gray-500 font-bold uppercase tracking-widest text-xs">Loading Mandi Details...</p>
+        <p className="mt-4 text-gray-500 font-bold uppercase tracking-widest text-xs">Loading...</p>
       </div>
     );
   }
@@ -104,11 +100,6 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
                  <Leaf size={14} fill="white" /> Organic Verified
                </span>
              )}
-             {listing.isSellerVerified && (
-               <span className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg">
-                 <ShieldCheck size={14} /> Seller Verified
-               </span>
-             )}
            </div>
            <h1 className="text-4xl font-black text-white leading-tight drop-shadow-lg">{listing.crop}</h1>
            <div className="flex items-center text-white/80 text-xs font-bold mt-2">
@@ -118,14 +109,15 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
       </div>
 
       <div className="px-6 -mt-8 relative z-10">
-        {/* Mandi-Prophet Price Graph Card */}
+        
+        {/* Priority 3: Intelligence Screen (Price Prediction Graph) */}
         <div className="bg-white rounded-[2.5rem] p-6 shadow-xl shadow-gray-200/50 border border-gray-100 mb-6 relative overflow-hidden">
            <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
                  <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-green-600">
                     <TrendingUp size={18} />
                  </div>
-                 <h4 className="text-sm font-black text-gray-900">Mandi-Prophet AI</h4>
+                 <h4 className="text-sm font-black text-gray-900">Price Prediction</h4>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100">
                  <Sparkles size={12} className="text-green-600" />
@@ -133,55 +125,45 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
               </div>
            </div>
 
-           {/* Simulated Graph (SVG) */}
-           <div className="h-24 w-full mb-6 relative">
-              <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40">
-                {/* Past (Solid) */}
-                <path d="M 0 35 L 20 30 L 40 32 L 60 25" fill="none" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
-                {/* Future (Dashed) */}
-                <path d="M 60 25 L 75 18 L 100 10" fill="none" stroke="#22c55e" strokeWidth="2" strokeDasharray="3 2" strokeLinecap="round" />
-                {/* Points */}
-                <circle cx="0" cy="35" r="1.5" fill="#cbd5e1" />
-                <circle cx="20" cy="30" r="1.5" fill="#cbd5e1" />
-                <circle cx="40" cy="32" r="1.5" fill="#cbd5e1" />
-                <circle cx="60" cy="25" r="2.5" fill="#1e293b" />
-                <circle cx="100" cy="10" r="2.5" fill="#22c55e" />
+           {/* Priority 3: The Line Chart (Solid Past, Dotted Future) */}
+           <div className="h-32 w-full mb-6 relative">
+              <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40" preserveAspectRatio="none">
+                {/* Past (Solid Line) - Days 1 to 7 */}
+                <path d="M 0 35 L 20 32 L 40 28 L 60 25" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" />
+                {/* Future (Dotted Line) - Days 8 to 10 */}
+                <path d="M 60 25 L 80 15 L 100 10" fill="none" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 2" strokeLinecap="round" />
+                
+                {/* Data Points */}
+                <circle cx="0" cy="35" r="2" fill="#22c55e" />
+                <circle cx="20" cy="32" r="2" fill="#22c55e" />
+                <circle cx="40" cy="28" r="2" fill="#22c55e" />
+                <circle cx="60" cy="25" r="3" fill="#15803d" /> {/* Current Day */}
+                <circle cx="80" cy="15" r="2" fill="#86efac" />
+                <circle cx="100" cy="10" r="2" fill="#86efac" />
               </svg>
-              <div className="absolute top-0 right-0 p-1.5 bg-green-600 text-white text-[8px] font-black rounded-lg animate-bounce">
-                ₹2,450/qtl
+              
+              {/* Labels */}
+              <div className="absolute top-0 right-0 transform -translate-y-full bg-green-600 text-white text-[8px] font-black px-2 py-1 rounded-lg">
+                +15% Forecast
+              </div>
+              <div className="flex justify-between text-[8px] font-bold text-gray-400 mt-2">
+                 <span>7 Days Ago</span>
+                 <span>Today</span>
+                 <span>In 3 Days</span>
               </div>
            </div>
 
-           <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-              <Zap size={18} className="text-amber-500 mt-0.5" />
+           {/* Priority 3: The AI Advisor Box */}
+           <div className="flex items-start gap-3 p-4 bg-gray-900 rounded-2xl border border-gray-800 text-white shadow-lg">
+              <Bot size={24} className="text-green-400 mt-0.5" />
               <div>
-                <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none mb-1">Actionable Advice</p>
-                <p className="text-xs font-bold text-gray-500">Sell in 3 days for max profit. Local mandi arrivals are slowing down.</p>
+                <p className="text-[10px] font-black text-green-400 uppercase tracking-widest leading-none mb-1">AI Advice</p>
+                <p className="text-sm font-bold leading-tight">
+                   Wait! Price rising by 15% in 2 days.
+                </p>
               </div>
            </div>
         </div>
-
-        {/* Organic Passport - Traceability Timeline */}
-        {listing.isOrganic && (
-          <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-green-100 mb-6 relative overflow-hidden">
-             <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-2">
-                   <div className="w-8 h-8 rounded-full bg-green-50 text-green-700 flex items-center justify-center">
-                      <Fingerprint size={18} />
-                   </div>
-                   <h4 className="text-sm font-black text-gray-900">{t.traceability_passport}</h4>
-                </div>
-                <div className="px-2 py-1 bg-green-700 text-white rounded text-[8px] font-black uppercase">Satya-Ledger Verified</div>
-             </div>
-             <div className="space-y-4">
-                <PassportStep title="Bio-Harvest" date="July 2, 2024" hash="0x8f2...a1" active />
-                <PassportStep title="Neem-Oil Shield Spray" date="June 14, 2024" hash="0x4d1...c9" />
-                <PassportStep title="Jeevamrutham Added" date="May 28, 2024" hash="0x9a3...e2" />
-                <PassportStep title="Organic Seed Certification" date="April 10, 2024" hash="0x2b4...f5" />
-             </div>
-             <div className="absolute top-0 right-0 w-32 h-full bg-green-50/20 -skew-x-12 translate-x-16 pointer-events-none"></div>
-          </div>
-        )}
 
         {/* Price & Bid Stats */}
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -259,47 +241,6 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
           </div>
         )}
 
-        {/* Seller Profile Breakdown */}
-        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 px-2">Trust Metrics</h3>
-        <div className="bg-white rounded-[2.5rem] p-6 border border-gray-100 shadow-sm mb-8">
-           <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                 <div className="w-16 h-16 rounded-[1.5rem] bg-gray-50 flex items-center justify-center relative overflow-hidden ring-4 ring-green-50">
-                    <img src={`https://picsum.photos/seed/${listing.seller}/150/150`} className="w-full h-full object-cover" alt="Seller" />
-                    {listing.isSellerVerified && (
-                      <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-1.5 rounded-full border-2 border-white shadow-lg">
-                        <ShieldCheck size={12} />
-                      </div>
-                    )}
-                 </div>
-                 <div>
-                    <h4 className="font-black text-gray-900 text-lg">{listing.seller}</h4>
-                    <div className="flex items-center gap-1.5 mt-1">
-                       <div className="flex text-amber-400">
-                          {[...Array(5)].map((_, i) => <Star key={i} size={10} fill={i < 4 ? "currentColor" : "none"} />)}
-                       </div>
-                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">4.8 • Top Seller</span>
-                    </div>
-                 </div>
-              </div>
-              <button className="w-12 h-12 bg-green-50 text-green-700 rounded-2xl flex items-center justify-center active:scale-90 transition-all">
-                 <MessageCircle size={22} strokeWidth={2.5} />
-              </button>
-           </div>
-           <div className="grid grid-cols-2 gap-3 pt-6 border-t border-gray-50">
-              <div className="flex items-center gap-2 text-gray-500">
-                 <History size={14} className="text-blue-500" />
-                 <span className="text-[10px] font-black uppercase">24 Sales</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-500">
-                 <BadgeCheck size={14} className={listing.isSellerVerified ? 'text-green-500' : 'text-gray-300'} />
-                 <span className={`text-[10px] font-black uppercase ${listing.isSellerVerified ? 'text-gray-700' : 'text-gray-400'}`}>
-                   {listing.isSellerVerified ? 'KYC Verified' : 'KYC Pending'}
-                 </span>
-              </div>
-           </div>
-        </div>
-
         {/* Description Section */}
         <div className="bg-white rounded-[2.5rem] p-6 border border-gray-100 shadow-sm mb-12">
            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Item Intelligence</h3>
@@ -346,7 +287,7 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
                 }`}
               >
                 {bidPlaced ? 'Bid Success!' : t.place_bid} 
-                {!bidPlaced && <Gavel size={18} />}
+                {!bidPlaced && <Zap size={18} />}
               </button>
            </div>
         </div>
@@ -354,22 +295,6 @@ const MarketDetailScreen: React.FC<MarketDetailScreenProps> = ({ navigateTo, lis
     </div>
   );
 };
-
-const PassportStep: React.FC<{ title: string; date: string; hash: string; active?: boolean }> = ({ title, date, hash, active }) => (
-  <div className="flex gap-4">
-    <div className="flex flex-col items-center">
-      <div className={`w-3 h-3 rounded-full ${active ? 'bg-green-600 ring-4 ring-green-100' : 'bg-gray-200'}`}></div>
-      <div className="flex-1 w-0.5 bg-gray-50 mt-1 min-h-[16px]"></div>
-    </div>
-    <div className="pb-4 flex-1">
-      <div className="flex justify-between items-start">
-         <h5 className={`text-[11px] font-black uppercase tracking-wider ${active ? 'text-gray-900' : 'text-gray-400'}`}>{title}</h5>
-         <span className="text-[8px] font-mono text-gray-300 bg-gray-50 px-1 rounded">{hash}</span>
-      </div>
-      <p className="text-[9px] font-bold text-green-600 mt-0.5">{date}</p>
-    </div>
-  </div>
-);
 
 const TimelineItem: React.FC<{ status: string, date: string, icon: React.ReactNode, active?: boolean, completed?: boolean }> = ({ status, date, icon, active, completed }) => (
   <div className="flex gap-5">
@@ -383,14 +308,6 @@ const TimelineItem: React.FC<{ status: string, date: string, icon: React.ReactNo
       <p className={`text-sm font-black transition-colors ${active ? 'text-gray-900' : 'text-gray-400'}`}>{status}</p>
       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em] mt-1">{date}</p>
     </div>
-  </div>
-);
-
-const LoaderIcon = () => (
-  <div className="relative">
-    <div className="w-16 h-16 border-4 border-green-100 rounded-full"></div>
-    <div className="absolute top-0 left-0 w-16 h-16 border-4 border-green-600 rounded-full border-t-transparent animate-spin"></div>
-    <Package className="absolute inset-0 m-auto text-green-600" size={24} />
   </div>
 );
 

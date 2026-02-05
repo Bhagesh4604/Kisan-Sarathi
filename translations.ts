@@ -9,7 +9,7 @@ export const languages = [
   { code: 'te', label: 'Telugu', native: 'తెలుగు' },
   { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
   { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ' },
-  { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬी' },
+  { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
 ];
 
 const en = {
@@ -94,7 +94,13 @@ const en = {
   farming_type: "Farming Type",
   auto_fill: "AI Auto-Fill Form",
   why_match: "Why am I a match?",
-  match_confidence: "Match Confidence"
+  match_confidence: "Match Confidence",
+  crisis_shield: "Kisan-Manas Shield",
+  distress_detected: "Distress Signal Detected",
+  support_message: "We are here for you. You are not alone.",
+  helpline_btn: "Call 24/7 Kisan Helpline",
+  debt_relief_btn: "View Debt Relief Schemes",
+  calm_down: "Calming Mode Active"
 };
 
 const hi = {
@@ -179,7 +185,13 @@ const hi = {
   farming_type: "खेती का प्रकार",
   auto_fill: "एआई ऑटो-फिल फॉर्म",
   why_match: "मैं मैच क्यों हूँ?",
-  match_confidence: "मैच कॉन्फिडेंस"
+  match_confidence: "मैच कॉन्फिडेंस",
+  crisis_shield: "किसान-मानस कवच",
+  distress_detected: "संकट संकेत मिला",
+  support_message: "हम आपके साथ हैं। आप अकेले नहीं हैं।",
+  helpline_btn: "24/7 किसान हेल्पलाइन",
+  debt_relief_btn: "ऋण माफी योजनाएं",
+  calm_down: "शांत मोड सक्रिय"
 };
 
 export const translations: Record<Language, any> = {

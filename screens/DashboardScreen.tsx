@@ -23,7 +23,9 @@ import {
   Zap,
   Calendar,
   ExternalLink,
-  Gift
+  Gift,
+  FileText,
+  Users
 } from 'lucide-react';
 import { languages } from '../translations';
 import { GoogleGenAI } from '@google/genai';
@@ -110,7 +112,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
   }, [currentLang]);
 
   return (
-    <div className="p-6 bg-[#F8FAF8] min-h-full relative pb-24">
+    <div className="p-6 bg-[#F8FAF8] min-h-full relative pb-32">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
@@ -179,29 +181,33 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
         <div className="absolute -top-10 -right-10 w-48 h-48 bg-green-500/20 rounded-full blur-3xl"></div>
       </div>
 
-      {/* SCHEME-SETU AI MATCHER BANNER */}
-      <button 
-        onClick={() => navigateTo('scheme-setu')}
-        className="w-full bg-indigo-900 p-6 rounded-[2.5rem] shadow-2xl shadow-indigo-200/50 mb-8 flex items-center justify-between group overflow-hidden relative active:scale-95 transition-all"
-      >
-        <div className="flex items-center gap-5 relative z-10">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-500/20 backdrop-blur-md flex items-center justify-center text-indigo-100 border border-indigo-400/30">
-            <Gift size={32} />
-          </div>
-          <div className="text-left">
-            <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">{t.matcher_tag}</p>
-            <h4 className="text-xl font-black text-white">{t.scheme_setu}</h4>
-            <div className="flex items-center gap-1 mt-1">
-               <Sparkles size={10} className="text-amber-400" />
-               <p className="text-[9px] font-black text-indigo-200 uppercase">You have 3 matches</p>
-            </div>
-          </div>
+      {/* Daily Insights / News */}
+      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 mb-8 relative overflow-hidden">
+        <div className="flex justify-between items-center mb-4">
+           <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+             <Newspaper size={16} className="text-indigo-600" /> Daily Brief
+           </h3>
+           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' })}</span>
         </div>
-        <div className="p-3 bg-white/10 rounded-2xl relative z-10 text-white">
-          <ChevronRight size={20} />
-        </div>
-        <div className="absolute top-0 right-0 w-48 h-full bg-indigo-500/10 skew-x-[-20deg] translate-x-12"></div>
-      </button>
+        
+        {loadingNews ? (
+           <div className="flex items-center gap-3 py-2">
+              <Loader2 size={16} className="animate-spin text-indigo-600" />
+              <p className="text-xs font-bold text-gray-400">Curating local updates...</p>
+           </div>
+        ) : (
+           <div className="relative z-10">
+              <p className="text-sm font-medium text-gray-700 leading-relaxed line-clamp-3">
+                 {liveNews || "Market prices for Soybeans are up by 4% in Nagpur mandi due to export demand. Cloudy weather expected in Vidarbha region."}
+              </p>
+              <div className="mt-4 flex gap-2">
+                 <span className="px-2 py-1 bg-indigo-50 text-indigo-700 text-[9px] font-black uppercase rounded-lg border border-indigo-100">Market</span>
+                 <span className="px-2 py-1 bg-green-50 text-green-700 text-[9px] font-black uppercase rounded-lg border border-green-100">Weather</span>
+              </div>
+           </div>
+        )}
+        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-60"></div>
+      </div>
 
       {/* LIVE VOICE CONSULT BUTTON */}
       <button 
@@ -223,7 +229,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
               </div>
            </div>
         </div>
-        <div className="absolute top-0 right-0 w-32 h-full bg-green-50/50 skew-x-[-20deg] translate-x-12"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
       </button>
 
       {/* Main Action Grid */}
@@ -236,10 +242,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
           bgColor="bg-blue-50"
         />
         <GridAction
-          title="Price Forecast"
-          subtitle="Geo-Prophet AI"
-          icon={<Sparkles size={24} className="text-amber-600" />}
-          onClick={() => navigateTo('forecast')}
+          title="Govt Schemes"
+          subtitle="Benefits & Subsidies"
+          icon={<Landmark size={24} className="text-amber-600" />}
+          onClick={() => navigateTo('scheme-setu')}
           bgColor="bg-amber-50"
         />
         <GridAction
@@ -250,10 +256,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
           bgColor="bg-orange-50"
         />
         <GridAction
-          title={t.farm_map}
-          subtitle="NDVI Health View"
-          icon={<MapIcon size={24} className="text-emerald-600" />}
-          onClick={() => navigateTo('map')}
+          title="Price Forecast"
+          subtitle="Geo-Prophet AI"
+          icon={<TrendingUp size={24} className="text-emerald-600" />}
+          onClick={() => navigateTo('forecast')}
           bgColor="bg-emerald-50"
         />
       </div>
@@ -262,7 +268,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4 px-2">
           <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-            <Landmark size={16} className="text-green-700" /> {t.scheme_alerts}
+            <Bell size={16} className="text-green-700" /> {t.scheme_alerts}
           </h3>
           <button className="text-[10px] font-black text-green-700 uppercase tracking-widest">
             {t.view_all}
@@ -311,40 +317,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
         </div>
       </div>
 
-      {/* Live Market Pulse */}
-      <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm mb-8 relative overflow-hidden group">
-         <div className="flex justify-between items-center mb-4 relative z-10">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-               <Globe size={14} className="text-green-600" /> Live Market Pulse
-            </h3>
-            <span className="px-2 py-1 bg-green-50 text-green-700 rounded-lg text-[8px] font-black uppercase tracking-wider">Search Verified</span>
-         </div>
-         <div className="relative z-10">
-            {loadingNews ? (
-              <div className="flex items-center gap-3 py-2">
-                <Loader2 size={16} className="animate-spin text-green-600" />
-                <span className="text-[10px] font-black text-gray-400 uppercase">Fetching latest news...</span>
-              </div>
-            ) : liveNews ? (
-              <div className="flex gap-4">
-                 <div className="w-10 h-10 rounded-xl bg-green-50 text-green-700 flex items-center justify-center shrink-0">
-                    <Newspaper size={20} />
-                 </div>
-                 <p className="text-xs font-bold text-gray-700 leading-relaxed italic">
-                    "{liveNews}"
-                 </p>
-              </div>
-            ) : (
-              <p className="text-xs text-gray-400">Tap to refresh live agri-insights.</p>
-            )}
-         </div>
-      </div>
-
       {/* Fin-Trust Banner */}
       <h3 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em] mb-4 px-2">{t.fin_trust}</h3>
       <button 
         onClick={() => navigateTo('finance')}
-        className="w-full bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/30 flex items-center justify-between mb-10 active:scale-[0.98] transition-all group"
+        className="w-full bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/30 flex items-center justify-between mb-8 active:scale-[0.98] transition-all group"
       >
         <div className="flex items-center gap-5">
           <div className="w-14 h-14 rounded-[1.5rem] bg-gray-900 flex flex-col items-center justify-center text-white group-hover:bg-green-700 transition-colors">
@@ -362,6 +339,36 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigateTo, user, t, 
           <ChevronRight size={20} className="text-gray-300" />
         </div>
       </button>
+
+      {/* Community Teaser (Filling space below Fin-Trust) */}
+      <div className="bg-[#1e293b] rounded-[2.5rem] p-7 text-white relative overflow-hidden shadow-xl mb-4">
+         <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+               <h3 className="text-lg font-black">Kisan Community</h3>
+               <Users size={18} className="text-blue-300" />
+            </div>
+            <p className="text-xs text-gray-400 font-bold mb-5 leading-relaxed">
+              Connect with 10,000+ farmers in your district. Share tips and get advice.
+            </p>
+            
+            <div className="flex items-center gap-4 mb-5">
+               <div className="flex -space-x-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="w-8 h-8 rounded-full border-2 border-[#1e293b] bg-gray-500 flex items-center justify-center text-[8px]">
+                      {i}
+                    </div>
+                  ))}
+               </div>
+               <span className="text-[9px] font-black uppercase tracking-widest text-blue-200">+42 New Discussions</span>
+            </div>
+
+            <button className="w-full py-4 bg-white text-[#1e293b] rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-100 transition-colors">
+               Join Conversation
+            </button>
+         </div>
+         <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+         <div className="absolute bottom-0 left-0 w-32 h-32 bg-green-500/10 rounded-full blur-3xl -ml-10 -mb-10"></div>
+      </div>
     </div>
   );
 };

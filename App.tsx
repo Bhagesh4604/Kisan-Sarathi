@@ -108,7 +108,7 @@ const App: React.FC = () => {
   const showNav = !['auth', 'profile', 'market-detail', 'live-audio', 'carbon-vault', 'scheme-setu'].includes(currentScreen);
 
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-white shadow-xl relative overflow-hidden text-gray-900">
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-[#F8FAF8] shadow-xl relative overflow-hidden text-gray-900">
       <main className="flex-1 overflow-y-auto pb-20">
         {renderScreen()}
       </main>

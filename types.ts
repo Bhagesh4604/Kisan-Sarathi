@@ -17,8 +17,10 @@ export interface UserProfile {
 }
 
 export interface ChatMessage {
-  role: 'user' | 'model';
+  role: 'user' | 'model' | 'system';
   text: string;
+  isIntervention?: boolean;
+  interventionType?: 'debt_relief' | 'helpline';
 }
 
 export interface Scheme {

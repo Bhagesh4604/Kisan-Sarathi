@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { Screen, Language } from '../types';
-import { ArrowLeft, Mic, MicOff, Volume2, VolumeX, X, BrainCircuit, Sparkles, Loader2, MessageSquareText } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Volume2, VolumeX, X, BrainCircuit, Sparkles, Loader2, MessageSquareText, HeartHandshake, ShieldAlert } from 'lucide-react';
 import { COLORS } from '../constants';
 import { languages } from '../translations';
 
@@ -18,6 +18,7 @@ const LiveAudioScreen: React.FC<LiveAudioScreenProps> = ({ navigateTo, language,
   const [transcriptions, setTranscriptions] = useState<{ role: 'user' | 'model', text: string }[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [currentOutput, setCurrentOutput] = useState('');
+  const [isDistressed, setIsDistressed] = useState(false);
   
   const sessionRef = useRef<any>(null);
   const isActiveRef = useRef(false);
@@ -87,202 +88,236 @@ const LiveAudioScreen: React.FC<LiveAudioScreenProps> = ({ navigateTo, language,
             setIsConnecting(false);
             const source = audioContextInRef.current!.createMediaStreamSource(stream);
             const scriptProcessor = audioContextInRef.current!.createScriptProcessor(4096, 1, 1);
-            scriptProcessor.onaudioprocess = (e) => {
+            scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
               if (!isActiveRef.current) return;
-              const inputData = e.inputBuffer.getChannelData(0);
+              const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
               const pcmBlob = createBlob(inputData);
-              sessionPromise.then(session => {
-                if (isActiveRef.current) session.sendRealtimeInput({ media: pcmBlob });
+              sessionPromise.then((session) => {
+                session.sendRealtimeInput({ media: pcmBlob });
               });
             };
             source.connect(scriptProcessor);
             scriptProcessor.connect(audioContextInRef.current!.destination);
           },
           onmessage: async (message: LiveServerMessage) => {
-            if (message.serverContent?.inputTranscription) {
-              setCurrentInput(prev => prev + message.serverContent!.inputTranscription!.text);
-            }
             if (message.serverContent?.outputTranscription) {
-              setCurrentOutput(prev => prev + message.serverContent!.outputTranscription!.text);
-            }
-            if (message.serverContent?.turnComplete) {
-              setTranscriptions(prev => [
-                ...prev, 
-                { role: 'user', text: currentInput },
-                { role: 'model', text: currentOutput }
-              ]);
-              setCurrentInput('');
-              setCurrentOutput('');
+               setCurrentOutput(prev => prev + message.serverContent!.outputTranscription!.text);
+            } else if (message.serverContent?.inputTranscription) {
+               setCurrentInput(prev => prev + message.serverContent!.inputTranscription!.text);
             }
 
-            const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-            if (base64Audio && audioContextOutRef.current) {
-              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioContextOutRef.current.currentTime);
-              const audioBuffer = await decodeAudioData(decode(base64Audio), audioContextOutRef.current, 24000, 1);
-              const source = audioContextOutRef.current.createBufferSource();
+            if (message.serverContent?.turnComplete) {
+               // Check for distress in the user's input transcription
+               const distressRegex = /(suicide|kill myself|die|hopeless|ruined|debt|loan|repay|failed|end my life|mar jaunga|khatam|barbad|karz|udhaar)/i;
+               if (distressRegex.test(currentInput)) {
+                  setIsDistressed(true);
+               }
+
+               setTranscriptions(prev => [
+                 ...prev, 
+                 { role: 'user', text: currentInput },
+                 { role: 'model', text: currentOutput }
+               ]);
+               setCurrentInput('');
+               setCurrentOutput('');
+            }
+
+            const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+            if (base64Audio) {
+              const audioCtx = audioContextOutRef.current!;
+              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioCtx.currentTime);
+              const audioBuffer = await decodeAudioData(
+                decode(base64Audio),
+                audioCtx,
+                24000,
+                1
+              );
+              const source = audioCtx.createBufferSource();
               source.buffer = audioBuffer;
-              source.connect(audioContextOutRef.current.destination);
-              source.addEventListener('ended', () => sourcesRef.current.delete(source));
+              source.connect(audioCtx.destination);
+              source.onended = () => {
+                sourcesRef.current.delete(source);
+              };
               source.start(nextStartTimeRef.current);
               nextStartTimeRef.current += audioBuffer.duration;
               sourcesRef.current.add(source);
             }
-
-            if (message.serverContent?.interrupted) {
-              for (const src of sourcesRef.current) {
-                try { src.stop(); } catch(e) {}
-              }
-              sourcesRef.current.clear();
-              nextStartTimeRef.current = 0;
-            }
           },
-          onclose: () => stopSession(),
-          onerror: () => stopSession(),
+          onclose: () => {
+            setIsActive(false);
+            isActiveRef.current = false;
+          },
+          onerror: (e) => {
+            console.error(e);
+            setIsActive(false);
+            isActiveRef.current = false;
+            setIsConnecting(false);
+          }
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+          },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          systemInstruction: `You are a world-class Agricultural Consultant specialized in Indian farming. The user is a farmer from ${currentLangLabel} speaking background. Provide clear, empathetic, and scientifically sound farming advice in ${currentLangLabel}. Focus on practical solutions for pests, weather, and market prices.`
+          systemInstruction: `You are Kisan-Sarathi, an expert AI Agricultural Scientist and Empathetic Companion. 
+          Language: ${currentLangLabel}.
+          
+          CRISIS SHIELD PROTOCOL (Active):
+          1. Monitor for signs of extreme distress, panic, debt-related hopelessness, or suicidal ideation in the user's voice and text.
+          2. IF DISTRESS IS DETECTED:
+             - Immediately shift tone to be calm, slow, and reassuring.
+             - Validate their feelings (e.g., "I hear you, and I know it is very hard right now.").
+             - Do NOT give technical farming advice in this state.
+             - Gently mention the "Samadhan Debt Relief Scheme" or "Kisan Helpline (1800-180-1551)" as a source of immediate human support.
+             - Your primary goal is de-escalation and emotional support.
+          
+          NORMAL MODE:
+          - Provide expert, scientific advice on crops, weather, and markets.
+          - Be concise and practical.`
         }
       });
+      sessionRef.current = sessionPromise;
 
-      sessionRef.current = await sessionPromise;
     } catch (err) {
       console.error(err);
-      stopSession();
+      setIsConnecting(false);
     }
   };
 
   const stopSession = () => {
+    if (sessionRef.current) {
+      sessionRef.current.then((session: any) => session.close());
+    }
+    if (audioContextInRef.current) audioContextInRef.current.close();
+    if (audioContextOutRef.current) audioContextOutRef.current.close();
     setIsActive(false);
     isActiveRef.current = false;
     setIsConnecting(false);
-    
-    if (sessionRef.current) {
-      try { sessionRef.current.close(); } catch (e) {}
-      sessionRef.current = null;
-    }
-
-    if (audioContextInRef.current && audioContextInRef.current.state !== 'closed') {
-      audioContextInRef.current.close().catch(() => {});
-    }
-    audioContextInRef.current = null;
-
-    if (audioContextOutRef.current && audioContextOutRef.current.state !== 'closed') {
-      audioContextOutRef.current.close().catch(() => {});
-    }
-    audioContextOutRef.current = null;
-
-    sourcesRef.current.forEach(src => {
-      try { src.stop(); } catch (e) {}
-    });
-    sourcesRef.current.clear();
-    nextStartTimeRef.current = 0;
+    setIsDistressed(false);
+    setTranscriptions([]);
   };
 
   useEffect(() => {
-    return () => stopSession();
+    return () => {
+      stopSession();
+    };
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-white relative">
+    <div className={`h-full flex flex-col transition-colors duration-1000 ${isDistressed ? 'bg-blue-50' : 'bg-white'}`}>
       {/* Header */}
-      <div className="p-6 flex items-center justify-between border-b border-gray-50">
-        <button onClick={() => navigateTo('home')} className="p-2 -ml-2 text-gray-400">
+      <div className="p-4 flex items-center justify-between z-10">
+        <button onClick={() => { stopSession(); navigateTo('home'); }} className="p-2 text-gray-400 bg-gray-50 rounded-full">
           <ArrowLeft size={24} />
         </button>
         <div className="flex flex-col items-center">
-          <h2 className="text-lg font-black text-gray-900 leading-none">Agri-Live Voice</h2>
-          <span className="text-[10px] font-black text-green-600 uppercase tracking-widest mt-1">Real-time Expert Consult</span>
+          <span className={`text-[10px] font-black uppercase tracking-widest ${isDistressed ? 'text-blue-500' : 'text-green-500'}`}>
+            {isDistressed ? 'Crisis Shield Active' : 'Live Satellite Link'}
+          </span>
+          <h2 className="text-lg font-black text-gray-900">{isDistressed ? 'Kisan-Manas Support' : 'Agri-Scientist AI'}</h2>
         </div>
-        <div className="w-10"></div>
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive ? 'bg-red-50 text-red-500 animate-pulse' : 'bg-gray-50 text-gray-300'}`}>
+          <div className="w-3 h-3 bg-current rounded-full"></div>
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col p-8 items-center justify-center text-center">
-        {!isActive && !isConnecting ? (
-          <div className="animate-in fade-in zoom-in duration-500">
-            <div className="w-24 h-24 rounded-[2.5rem] bg-green-50 flex items-center justify-center text-green-700 mb-8 mx-auto shadow-xl shadow-green-100">
-              <Mic size={40} />
-            </div>
-            <h3 className="text-2xl font-black text-gray-900 mb-3">Speak to Agri-Expert</h3>
-            <p className="text-sm text-gray-500 font-medium leading-relaxed max-w-xs mx-auto mb-10">
-              Have a natural conversation in <span className="text-green-700 font-black">{currentLangLabel}</span>. Ask about seeds, diseases, or market rates.
-            </p>
+      {/* Main Visualizer Area */}
+      <div className="flex-1 flex flex-col items-center justify-center relative">
+         {/* Background Ambient Effect */}
+         <div className={`absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none transition-colors duration-1000 ${isDistressed ? 'text-blue-300' : 'text-green-200'}`}>
+            <div className={`w-64 h-64 rounded-full blur-3xl bg-current ${isActive ? 'animate-pulse' : ''}`}></div>
+         </div>
+
+         {/* Central Avatar / Visualizer */}
+         <div className={`relative z-10 w-48 h-48 rounded-full flex items-center justify-center transition-all duration-500 ${
+           isActive 
+           ? (isDistressed ? 'bg-blue-100 shadow-[0_0_60px_rgba(59,130,246,0.3)] scale-110' : 'bg-green-100 shadow-[0_0_60px_rgba(34,197,94,0.3)] scale-110')
+           : 'bg-gray-50'
+         }`}>
+            {isConnecting ? (
+               <Loader2 size={48} className={`animate-spin ${isDistressed ? 'text-blue-500' : 'text-green-600'}`} />
+            ) : isActive ? (
+               isDistressed ? (
+                 <HeartHandshake size={64} className="text-blue-600 animate-pulse" />
+               ) : (
+                 <BrainCircuit size={64} className="text-green-600" />
+               )
+            ) : (
+               <MicOff size={48} className="text-gray-300" />
+            )}
+            
+            {/* Ripple Effects when Active */}
+            {isActive && (
+              <>
+                 <div className={`absolute inset-0 rounded-full border-2 opacity-50 animate-ping ${isDistressed ? 'border-blue-400' : 'border-green-400'}`} style={{ animationDuration: '2s' }}></div>
+                 <div className={`absolute inset-0 rounded-full border-2 opacity-30 animate-ping ${isDistressed ? 'border-blue-400' : 'border-green-400'}`} style={{ animationDuration: '3s', animationDelay: '0.5s' }}></div>
+              </>
+            )}
+         </div>
+         
+         <p className="mt-8 text-sm font-bold text-gray-400 uppercase tracking-widest text-center max-w-xs px-6">
+           {isConnecting ? "Establishing Secure Line..." : (isActive ? (isDistressed ? "We are here for you..." : "Listening...") : "Tap microphone to start")}
+         </p>
+
+         {/* Transcription Preview */}
+         <div className="mt-6 h-24 w-full max-w-sm px-6 overflow-y-auto no-scrollbar text-center space-y-2">
+            {transcriptions.slice(-2).map((t, i) => (
+              <p key={i} className={`text-sm ${t.role === 'user' ? 'text-gray-500' : (isDistressed ? 'text-blue-600 font-medium' : 'text-green-600 font-medium')}`}>
+                {t.text}
+              </p>
+            ))}
+            {currentInput && <p className="text-sm text-gray-400 italic">{currentInput}...</p>}
+         </div>
+      </div>
+
+      {/* Controls */}
+      <div className="p-8 pb-12 flex justify-center items-center gap-6">
+         {isActive ? (
+            <button 
+              onClick={stopSession}
+              className="w-20 h-20 bg-red-500 rounded-full text-white shadow-xl shadow-red-200 flex items-center justify-center active:scale-90 transition-all"
+            >
+               <X size={32} />
+            </button>
+         ) : (
             <button 
               onClick={startSession}
-              className="px-10 py-5 bg-green-700 text-white rounded-[2rem] font-black text-sm shadow-2xl shadow-green-200 active:scale-95 transition-all flex items-center gap-3"
+              disabled={isConnecting}
+              className={`w-20 h-20 rounded-full text-white shadow-xl flex items-center justify-center active:scale-90 transition-all ${
+                 isConnecting ? 'bg-gray-200' : (isDistressed ? 'bg-blue-600 shadow-blue-200' : 'bg-green-600 shadow-green-200')
+              }`}
             >
-              Start Voice Consult <Sparkles size={18} />
+               <Mic size={32} />
             </button>
-          </div>
-        ) : (
-          <div className="w-full flex-1 flex flex-col justify-between py-10">
-            <div className="space-y-4 w-full text-left overflow-y-auto max-h-[300px] mb-8 no-scrollbar">
-              {transcriptions.map((t, i) => (
-                <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-xs font-bold ${
-                    t.role === 'user' ? 'bg-gray-100 text-gray-700 rounded-tr-none' : 'bg-green-50 text-green-800 rounded-tl-none'
-                  }`}>
-                    {t.text}
-                  </div>
-                </div>
-              ))}
-              {(currentInput || currentOutput) && (
-                 <div className={`flex ${currentInput ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-xs font-bold opacity-60 italic ${
-                      currentInput ? 'bg-gray-100 rounded-tr-none' : 'bg-green-50 rounded-tl-none'
-                    }`}>
-                      {currentInput || currentOutput}...
-                    </div>
-                 </div>
-              )}
-            </div>
+         )}
+      </div>
 
-            <div className="relative flex items-center justify-center">
-               <div className="absolute inset-0 bg-green-100 blur-3xl opacity-30 rounded-full animate-pulse scale-150"></div>
-               <div className="relative w-48 h-48 rounded-full border-2 border-green-100 flex items-center justify-center">
-                  {/* Waveform Visualization Mockup */}
-                  <div className="flex items-end gap-1.5 h-16">
-                    {[0.3, 0.7, 1.0, 0.5, 0.8, 1.2, 0.6, 0.9, 0.4].map((h, i) => (
-                      <div 
-                        key={i} 
-                        className="w-1.5 bg-green-600 rounded-full animate-bounce"
-                        style={{ height: `${h * 40}px`, animationDelay: `${i * 0.1}s` }}
-                      ></div>
-                    ))}
-                  </div>
-               </div>
-            </div>
-
-            <div className="mt-12 flex flex-col items-center gap-6">
-              <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-full border border-green-100">
-                <div className="w-2 h-2 bg-green-600 rounded-full animate-ping"></div>
-                <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">
-                  {isConnecting ? 'Establishing Connection...' : 'AI is Listening...'}
-                </span>
+      {/* Distress Overlay Card */}
+      {isDistressed && (
+        <div className="absolute top-20 left-4 right-4 bg-blue-600 text-white p-6 rounded-[2rem] shadow-2xl animate-in slide-in-from-top-4 z-20">
+           <div className="flex items-start gap-4">
+              <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                 <ShieldAlert size={24} />
               </div>
-              
-              <button 
-                onClick={stopSession}
-                className="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center shadow-2xl shadow-red-200 active:scale-90 transition-all"
-              >
-                <X size={32} />
+              <div className="flex-1">
+                 <h3 className="text-lg font-black">{t.distress_detected}</h3>
+                 <p className="text-sm text-blue-100 mt-1 leading-relaxed">
+                   {t.support_message}
+                 </p>
+              </div>
+           </div>
+           <div className="mt-6 flex gap-3">
+              <button className="flex-1 py-3 bg-white text-blue-700 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg">
+                 Call Helpline
               </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="p-8 border-t border-gray-50 flex items-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
-          <BrainCircuit size={20} />
+              <button className="flex-1 py-3 bg-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest">
+                 Debt Relief
+              </button>
+           </div>
         </div>
-        <p className="text-[10px] font-bold text-gray-400 leading-tight">
-          Your conversation is private. Advice is generated by Krishi-Drishti AI v2.5.
-        </p>
-      </div>
+      )}
     </div>
   );
 };
